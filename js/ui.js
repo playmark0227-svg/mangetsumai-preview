@@ -53,7 +53,15 @@
       </g>
       <path d="M66 226 H134" stroke="#d0ad6d" stroke-width=".6"/>
       <text x="100" y="239" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="10.5" letter-spacing="2" fill="#e5c38c">${weight}</text>`;
-    const bag = (extra = '') => `
+    // 無地の紙袋（玄米30kgなど）: no designed label, just the sack's own print
+    const plainPrint = `
+      <g font-family="Shippori Mincho B1, serif" font-weight="700" fill="#5b3f22" fill-opacity=".82" text-anchor="middle">
+        <text x="100" y="138" font-size="30">玄</text><text x="100" y="174" font-size="30">米</text>
+      </g>
+      <rect x="62" y="196" width="76" height="30" fill="none" stroke="#5b3f22" stroke-opacity=".7" stroke-width="1.2"/>
+      <text x="100" y="217" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="15" letter-spacing="2" fill="#5b3f22" fill-opacity=".85">${weight}</text>
+      <text x="100" y="246" text-anchor="middle" font-family="Zen Maru Gothic, sans-serif" font-size="7.5" letter-spacing="1.4" fill="#5b3f22" fill-opacity=".7">北海道士別市産 ななつぼし</text>`;
+    const bag = (extra = '', plain = false) => `
       <path d="${body}" fill="url(#${u}k)"/>
       <path d="${body}" fill="url(#${u}sd)"/>
       <path d="M40 64 C44 130 40 210 33 284" stroke="#fff" stroke-opacity=".10" stroke-width="4" fill="none" stroke-linecap="round"/>
@@ -62,7 +70,7 @@
       <rect x="19" y="48" width="162" height="10" fill="url(#${u}cs)"/>
       <path d="${zig}" fill="url(#${u}tp)"/>
       <path d="M20 33 H180" stroke="#7d6040" stroke-width="1" stroke-dasharray="3 2.4" opacity=".75"/>
-      ${label}
+      ${plain ? plainPrint : label}
       ${extra}`;
     const seal = `
       <g transform="translate(160 84)">
@@ -97,6 +105,8 @@
       inner = `${shadow(170, 132)}
         <g transform="translate(116 12) scale(.9)">${bag()}<path d="${body}" fill="#0d121a" opacity=".22"/></g>
         <g transform="translate(24 26) scale(.95)">${bag()}</g>`;
+    } else if (style === 'plain') {
+      inner = `${shadow(160, 112)}<g transform="translate(55 6) scale(1.05)">${bag('', true)}</g>`;
     } else if (style === 'phases') {
       inner = `${shadow(160, 98)}${phases}<g transform="translate(66 40) scale(.94)">${bag()}</g>`;
     } else {

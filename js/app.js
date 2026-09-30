@@ -190,13 +190,12 @@
     if (alwaysFree() || sub >= over) return `<p class="free-ship">送料無料でお届けします。<span class="free-ship__bar"><i style="width:100%"></i></span></p>`;
     return `<p class="free-ship">送料無料まで、あと <b>¥${yen(over - sub)}</b> です。<span class="free-ship__bar"><i style="width:${Math.round((sub / over) * 100)}%"></i></span></p>`;
   }
-  function summaryHTML(t, extra = 0) {
+  function summaryHTML(t) {
     return `
       <dl class="summary">
         <div><dt>商品小計</dt><dd>¥${yen(t.sub)}</dd></div>
         <div><dt>送料</dt><dd>${t.ship === 0 ? '無料' : '¥' + yen(t.ship)}</dd></div>
-        ${extra ? `<div><dt>代引き手数料</dt><dd>¥${yen(extra)}</dd></div>` : ''}
-        <div class="summary__total"><dt>合計（税込）</dt><dd>${priceHTML(t.total + extra, { tax: false })}</dd></div>
+        <div class="summary__total"><dt>合計（税込）</dt><dd>${priceHTML(t.total, { tax: false })}</dd></div>
       </dl>`;
   }
   const preorderNotice = () => (mixedPreorder()
@@ -264,6 +263,60 @@
       $('#heroNewsText').textContent = n.text;
     }
     $$('[data-ship-text]').forEach((el) => { el.textContent = shipText(); });
+    const eb = $('#eventBanner');
+    if (eb) { eb.innerHTML = eventBannerHTML(); eb.hidden = !eb.innerHTML.trim(); }
+  }
+
+  /* ---------- 高輪 event (期間限定) ---------- */
+  const fmtDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${+m[2]}月${+m[3]}日` : ''; };
+  function eventBannerHTML() {
+    const e = settings().event;
+    if (!S.eventActive(e)) return '';
+    return `
+      <a class="event-banner" href="${esc(shopHref(e.slug))}">
+        <span class="event-banner__img" aria-hidden="true"></span>
+        <span class="event-banner__text">
+          <small>${e.date ? `${esc(fmtDate(e.date))} 開催` : '期間限定'}</small>
+          <b>${esc(e.title)}</b>
+        </span>
+        <span class="event-banner__go">ご案内を見る<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
+      </a>`;
+  }
+  function renderEvent(e) {
+    const active = S.eventActive(e);
+    const before = e.enabled && e.start && S.today() < e.start;
+    if (active && !new URLSearchParams(location.search).has('preview')) S.markEventVisit(e.slug);
+    const list = e.products.map((id) => S.product(id)).filter((p) => S.isVisible(p));
+    view().innerHTML = `
+      <section class="event-hero" aria-labelledby="evTitle">
+        <div class="container">
+          <nav aria-label="現在地"><ol class="crumbs"><li><a href="index.html">トップ</a></li><li><a href="#">オンラインショップ</a></li><li><span aria-current="page">イベントのご案内</span></li></ol></nav>
+          <p class="eyebrow"><span lang="en">Event</span>${e.date ? `<span class="eyebrow__jp">${esc(fmtDate(e.date))} 開催</span>` : ''}</p>
+          <h1 class="event-hero__title" id="evTitle" tabindex="-1" data-page-focus>${esc(e.title)}</h1>
+          ${active && e.lead ? `<p class="event-hero__lead">${esc(e.lead)}</p>` : ''}
+        </div>
+        <p class="photo-note">写真はイメージです</p>
+      </section>
+      <div class="page-body">
+        <div class="container">
+          ${active ? `
+          <ol class="event-steps" aria-label="ご注文の流れ">
+            <li><span class="num">1</span><p><b>QRコードを読み込む</b><span>このページが開きます。</span></p></li>
+            <li><span class="num">2</span><p><b>お米を選んでご注文</b><span>スマートフォンから、そのままご注文いただけます。</span></p></li>
+            <li><span class="num">3</span><p><b>ご自宅にお届け</b><span>${esc(e.shipNote)}</span></p></li>
+          </ol>
+          ${list.length ? `
+          <h2 class="event-sec">イベントでご案内しているお米</h2>
+          <div class="product-grid" data-count="${list.length}">${list.map((p) => cardHTML(p.options.preorder ? p : { ...p, when: '' }, { href: itemHref })).join('')}</div>` : ''}
+          <p class="notice event-note"><b>お届けについて</b>${esc(e.shipNote)}重たいお米も、ご自宅まで直接お届けします。</p>
+          <p class="event-more"><a class="btn btn--line" href="#">ほかの商品も見る</a></p>` : `
+          <div class="empty">
+            <span class="empty__moon" aria-hidden="true"></span>
+            <p>${!e.enabled ? 'このページは現在公開していません。' : before ? `このページは${esc(fmtDate(e.start))}から公開します。` : 'このページの公開は終了しました。'}満月米は、オンラインショップでいつでもご購入いただけます。</p>
+            <a class="btn btn--line btn--sm" href="#">オンラインショップへ</a>
+          </div>`}
+        </div>
+      </div>`;
   }
 
   /* =========================================================
@@ -289,6 +342,7 @@
       ${pageHead(cat ? cat.name : 'オンラインショップ', crumbs, `<p class="page-lead">北海道士別市上士別町の満月農園から、ご自宅へ直接お送りします。</p><p class="photo-note">写真はイメージです</p>`, 'page-head--photo')}
       <div class="page-body">
         <div class="container">
+          ${cat ? '' : eventBannerHTML()}
           <div class="shop-bar">
             <nav class="cat-tabs" aria-label="カテゴリ">
               <a href="#" ${!cat ? 'aria-current="page"' : ''}>すべて<span>${all.length}</span></a>
@@ -308,7 +362,7 @@
           <aside class="shop-info" aria-label="お買いものについて">
             <div><h2>送料</h2><p>${shipText(s)}です（<span class="nw">沖縄・離島</span>は別途お見積もり）。</p></div>
             <div><h2>発送</h2><p>ご注文から3〜5営業日で発送します。予約商品は、各商品ページに記載の時期にお届けします。</p></div>
-            <div><h2>お支払い</h2><p>${PAYMENTS.map((p) => p.label).join('、')}。<a class="link" href="#guide">ご利用ガイド</a></p></div>
+            <div><h2>お支払い</h2><p>クレジットカード（Stripeの決済画面でお支払い）。<a class="link" href="#guide">ご利用ガイド</a></p></div>
           </aside>
         </div>
       </div>`;
@@ -332,6 +386,7 @@
     const per = p.options.subscription ? '1回' : '';
     const cat = S.category(p.category);
     const note = stockNote(p);
+    const evShip = !p.options.preorder && eventOrder();
 
     view().innerHTML = `
       ${pageHead(null, [['トップ', 'index.html'], ['オンラインショップ', '#'], ...(cat ? [[cat.name, `#category-${cat.id}`]] : []), [p.name]])}
@@ -359,7 +414,7 @@
               </div>
               <p class="pd__lead">${jp(p.lead)}</p>
               <div class="pd__price" id="pdPrice">${priceHTML(firstAvail.price, { per })}</div>
-              <p class="pd__ship">${p.options.preorder ? '<b>予約商品</b>　' : ''}${esc(p.ship)}${note ? `　<b>${esc(note)}</b>` : ''}<br>${shipText(s)}（<span class="nw">沖縄・離島</span>は別途お見積もり）</p>
+              <p class="pd__ship">${p.options.preorder ? '<b>予約商品</b>　' : ''}${esc(evShip ? evShip.shipNote : p.ship)}${note ? `　<b>${esc(note)}</b>` : ''}<br>${shipText(s)}（<span class="nw">沖縄・離島</span>は別途お見積もり）</p>
 
               ${variants.length > 1 ? `
               <fieldset class="opt">
@@ -390,7 +445,7 @@
                 </div>
               </div>
               <p class="pd__sub">
-                ${p.options.traits ? '<a href="index.html#furusato"><span>ふるさと納税で選ぶ</span></a>' : ''}
+                ${p.options.traits && p.category !== 'genmai' ? '<a href="index.html#furusato"><span>ふるさと納税で選ぶ</span></a>' : ''}
                 <a href="#guide"><span>送料・お届けについて</span></a>
               </p>
             </form>
@@ -511,13 +566,11 @@
 
   /* ---------- checkout ---------- */
   const PREFS = '北海道 青森県 岩手県 宮城県 秋田県 山形県 福島県 茨城県 栃木県 群馬県 埼玉県 千葉県 東京都 神奈川県 新潟県 富山県 石川県 福井県 山梨県 長野県 岐阜県 静岡県 愛知県 三重県 滋賀県 京都府 大阪府 兵庫県 奈良県 和歌山県 鳥取県 島根県 岡山県 広島県 山口県 徳島県 香川県 愛媛県 高知県 福岡県 佐賀県 長崎県 熊本県 大分県 宮崎県 鹿児島県 沖縄県'.split(' ');
+  // card payment through Stripe (the only method agreed for launch)
   const PAYMENTS = [
-    { id: 'card', label: 'クレジットカード', note: '決済画面へ移動してお支払いいただきます', timing: 'ご注文時に決済画面でお支払い' },
-    { id: 'atobarai', label: 'コンビニ後払い', note: '商品到着後、コンビニでお支払いいただけます', timing: '商品到着後にコンビニでお支払い' },
-    { id: 'cod', label: '代金引換', note: '代引き手数料がかかります', timing: '商品お受け取り時にお支払い' },
-    { id: 'bank', label: '銀行振込', note: 'ご入金を確認してから発送します', timing: 'ご注文後にお振込み（ご入金確認後に発送）' },
+    { id: 'card', label: 'クレジットカード', note: 'ご注文の確定後、Stripe（ストライプ）の決済画面でお支払いいただきます', timing: 'ご注文の確定時に、Stripeの決済画面でお支払い' },
   ];
-  const payNote = (pm) => (pm.id === 'cod' ? `代引き手数料 ${yen(settings().codFee)}円` : pm.note);
+  const payNote = (pm) => pm.note;
   const TIMES = ['指定なし', '午前中', '14〜16時', '16〜18時', '18〜20時', '19〜21時'];
   const WEEK = '日月火水木金土';
   const dateOptions = () => {
@@ -561,7 +614,6 @@
       <p class="field__error" id="${id}-err" hidden></p>
     </div>`;
 
-  const codFee = () => (draft.pay === 'cod' ? settings().codFee : 0);
   function orderPanel() {
     const t = totals();
     return `
@@ -572,11 +624,17 @@
           <span class="mini-line__name">${esc(p.name)}<small>${[p.variants.length > 1 ? v.label : '', g.id !== 'none' ? g.label : ''].filter(Boolean).map(esc).join('／')} <span class="nw">× ${l.qty}</span></small></span>
           ${priceHTML(total, { tax: false })}</div>`; }).join('')}
         </div>
-        ${summaryHTML(t, codFee())}
+        ${summaryHTML(t)}
         <p class="drawer__links"><a href="#cart">カートに戻る</a></p>
       </aside>`;
   }
-  const payTotal = () => `<p class="pay-total" id="payTotal"><span>お支払い合計（税込）</span>${priceHTML(totals().total + codFee(), { tax: false })}</p>`;
+  const payTotal = () => `<p class="pay-total" id="payTotal"><span>お支払い合計（税込）</span>${priceHTML(totals().total, { tax: false })}</p>`;
+  // orders placed after arriving from the event page (QR code at the venue)
+  const eventOrder = () => {
+    const src = S.eventSource();
+    const e = settings().event;
+    return src && e && e.slug === src && S.eventActive(e) ? e : null;
+  };
 
   function renderCheckout() {
     if (!cart.length) {
@@ -585,6 +643,7 @@
     }
     const dates = dateOptions();
     const pre = hasPreorder();
+    const ev = eventOrder();
     view().innerHTML = `
       ${pageHead('お客様情報の入力', [['トップ', 'index.html'], ['カート', '#cart'], ['お客様情報']], stepsBar(1))}
       <div class="page-body">
@@ -629,7 +688,7 @@
               <section class="form-sec">
                 <h2><span class="num">3</span>お届け日時</h2>
                 <div class="fields">
-                  ${pre ? `<p class="field__hint field--full">予約商品を含むため、予約商品の発送（${esc(preorderShip())}）にあわせてお届けします。日付のご指定はできません。</p>` : `
+                  ${pre ? `<p class="field__hint field--full">予約商品を含むため、予約商品の発送（${esc(preorderShip())}）にあわせてお届けします。日付のご指定はできません。</p>` : ev ? `<p class="field__hint field--full">${esc(ev.shipNote)}日付のご指定はできません。</p>` : `
                   <div class="field">
                     <label class="field__label" for="date">お届け希望日<span class="opt-tag">任意</span></label>
                     <select class="select" id="date" name="date">
@@ -648,11 +707,12 @@
 
               <section class="form-sec">
                 <h2><span class="num">4</span>お支払い方法</h2>
-                <fieldset class="opt pay">
-                  <legend class="visually-hidden">お支払い方法</legend>
-                  ${PAYMENTS.map((pm, i) => `
-                    <label class="chip"><input type="radio" name="pay" value="${pm.id}" ${(draft.pay ? draft.pay === pm.id : i === 0) ? 'checked' : ''}><span>${pm.label}<small>${payNote(pm)}</small></span></label>`).join('')}
-                </fieldset>
+                <input type="hidden" name="pay" value="card">
+                <div class="pay-card">
+                  <svg viewBox="0 0 32 24" aria-hidden="true"><rect x="1" y="1" width="30" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1 7h30" stroke="currentColor" stroke-width="3"/><path d="M5 17h8" stroke="currentColor" stroke-width="1.2"/></svg>
+                  <p><b>クレジットカード</b><span>ご注文の確定後、Stripe（ストライプ）の決済画面でカード情報を入力してお支払いいただきます。カード情報は当店には保存されません。</span></p>
+                </div>
+                <p class="field__hint">デモサイトのため、決済画面には移動しません。</p>
               </section>
 
               <section class="form-sec">
@@ -685,10 +745,6 @@
     form.addEventListener('change', (e) => {
       if (!form.isConnected) return;
       collect(form);
-      if (e.target.name === 'pay') {
-        $('.checkout .panel').outerHTML = orderPanel();
-        $('#payTotal').outerHTML = payTotal();
-      }
     });
     form.addEventListener('focusout', (e) => {
       const el = e.target;
@@ -740,6 +796,7 @@
     const pay = PAYMENTS.find((p) => p.id === draft.pay) || PAYMENTS[0];
     const addr = (z, p, a1, a2) => `〒${esc(z)}<br>${esc(p)}${esc(a1)}${a2 ? ' ' + esc(a2) : ''}`;
     const pre = hasPreorder();
+    const ev = eventOrder();
     const teiki = cart.filter((l) => S.product(l.pid).options.subscription);
     const rows = [
       ['ご注文者さま', `${esc(draft.name1)} ${esc(draft.name2)}（${esc(draft.kana1)} ${esc(draft.kana2)}）`],
@@ -748,8 +805,8 @@
       ['メールアドレス', esc(draft.email)],
       ['お届け先', draft.giftTo ? `${esc(draft.sname)} さま<br>${addr(draft.szip, draft.spref, draft.saddr1, draft.saddr2)}<br>${esc(draft.stel)}` : 'ご注文者さまと同じ'],
       ...(hasGift() ? [['のしの名入れ', draft.noshiName ? esc(draft.noshiName) : 'なし']] : []),
-      ['お届け時期', pre ? `${esc(preorderShip())}（予約商品の発送にあわせてお届け）` : 'ご注文から3〜5営業日で発送'],
-      ['お届け日時', `希望日：${pre ? '指定なし' : esc(draft.date || '最短でお届け')}／時間帯：${esc(draft.time || '指定なし')}`],
+      ['お届け時期', pre ? `${esc(preorderShip())}（予約商品の発送にあわせてお届け）` : ev ? esc(ev.shipNote) : 'ご注文から3〜5営業日で発送'],
+      ['お届け日時', `希望日：${pre || ev ? '指定なし' : esc(draft.date || '最短でお届け')}／時間帯：${esc(draft.time || '指定なし')}`],
       ['お支払い方法', esc(pay.label)],
       ['お支払い時期', esc(pay.timing)],
       ['キャンセル・返品', 'ご注文確定後のキャンセル：（準備中）<br>食品のため、お客様のご都合による返品・交換はお受けできません（<a class="link" href="#guide">ご利用ガイド</a>）'],
@@ -790,8 +847,9 @@
         customer: { name: `${draft.name1} ${draft.name2}`, kana: `${draft.kana1} ${draft.kana2}`, tel: draft.tel, email: draft.email, zip: draft.zip, address: `${draft.pref}${draft.addr1}${draft.addr2 ? ' ' + draft.addr2 : ''}` },
         shipTo: draft.giftTo ? { name: draft.sname, zip: draft.szip, address: `${draft.spref}${draft.saddr1}${draft.saddr2 ? ' ' + draft.saddr2 : ''}`, tel: draft.stel } : null,
         items: cart.map((l) => { const { p, v, g, unit, total } = lineInfo(l); return { pid: p.id, name: p.name, variant: p.variants.length > 1 ? v.label : '', gift: g.id !== 'none' ? g.label : '', qty: l.qty, unit, total }; }),
-        subtotal: t.sub, ship: t.ship, cod: codFee(), total: t.total + codFee(),
-        pay: pay.label, date: pre ? '' : draft.date || '', time: draft.time || '', noshi: draft.noshiName || '', memo: draft.memo || '',
+        subtotal: t.sub, ship: t.ship, total: t.total,
+        source: ev ? ev.slug : '', sourceName: ev ? ev.title : '',
+        pay: pay.label, date: pre || ev ? '' : draft.date || '', time: draft.time || '', noshi: draft.noshiName || '', memo: draft.memo || '',
         preorder: pre,
       });
       if (!saved.ok) {
@@ -800,7 +858,7 @@
         return;
       }
       S.consumeStock(cart);
-      lastOrder = { no, name: `${draft.name1} ${draft.name2}`, preorder: pre, mixed: mixedPreorder(), ship: preorderShip() };
+      lastOrder = { no, name: `${draft.name1} ${draft.name2}`, preorder: pre, mixed: mixedPreorder(), ship: preorderShip(), eventNote: ev ? ev.shipNote : '' };
       cart = []; draft = {};
       S.saveCart(cart);
       renderCount();
@@ -819,7 +877,7 @@
             ${lastOrder ? `
               <h2>ご注文ありがとうございました</h2>
               <p class="thanks__no">ご注文番号<b>${esc(lastOrder.no)}</b></p>
-              <p>${esc(lastOrder.name)} さま、ご注文を承りました。${lastOrder.preorder ? (lastOrder.mixed ? `ご注文の商品は、予約商品の発送（${esc(lastOrder.ship)}）にあわせてまとめてお届けします。` : `予約商品は、${esc(lastOrder.ship)}。`) : '準備が整いしだい発送いたします。'}</p>
+              <p>${esc(lastOrder.name)} さま、ご注文を承りました。${lastOrder.preorder ? (lastOrder.mixed ? `ご注文の商品は、予約商品の発送（${esc(lastOrder.ship)}）にあわせてまとめてお届けします。` : `予約商品は、${esc(lastOrder.ship)}。`) : lastOrder.eventNote ? esc(lastOrder.eventNote) : '準備が整いしだい発送いたします。'}</p>
               <p class="notice">デモサイトのため、確認メールの送信や実際の発送は行われません。</p>`
             : `<h2>ご注文番号を表示できません</h2><p>ご注文の手続きが済むと、この画面にご注文番号が表示されます。ページを開き直した場合は表示されません。</p>`}
             <div class="thanks__actions">
@@ -853,8 +911,8 @@
                 <h2>ご注文の流れ</h2>
                 <ol class="guide__flow">
                   <li><i>01</i><b>商品を選ぶ</b><span>内容量やギフト包装を選んで、カートに入れます。</span></li>
-                  <li><i>02</i><b>お客様情報</b><span>お届け先とお支払い方法を入力します。</span></li>
-                  <li><i>03</i><b>ご確認</b><span>ご注文内容を確かめて、注文を確定します。</span></li>
+                  <li><i>02</i><b>お客様情報</b><span>お名前・ご住所・お届け先を入力します。</span></li>
+                  <li><i>03</i><b>ご確認・お支払い</b><span>ご注文内容を確かめて注文を確定し、Stripeの決済画面からクレジットカードでお支払いいただきます。</span></li>
                   <li><i>04</i><b>お届け</b><span>士別市の満月農園から、常温便でお届けします。</span></li>
                 </ol>
               </section>
@@ -869,8 +927,8 @@
                 <div class="table-wrap"><table class="spec-table"><tbody>
                   <tr><th scope="row">送料</th><td>${shipText(s)}<br><span class="pending">沖縄・離島は別途お見積もりとなります</span></td></tr>
                   <tr><th scope="row">配送方法</th><td>常温便</td></tr>
-                  <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>予約商品：各商品ページに記載の時期に発送</td></tr>
-                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます（予約商品を含むご注文は日付指定不可）</td></tr>
+                  <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>予約商品：各商品ページに記載の時期に発送${S.eventActive(s.event) ? `<br>イベントページからのご注文：${esc(s.event.shipNote)}` : ''}</td></tr>
+                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます（予約商品を含むご注文${S.eventActive(s.event) ? '・イベントページからのご注文' : ''}は日付指定不可）</td></tr>
                   <tr><th scope="row">ギフト包装・のし</th><td>1点につき${yen(s.giftFee)}円（御歳暮・御礼・内祝・無地）</td></tr>
                 </tbody></table></div>
               </section>
@@ -887,8 +945,9 @@
                   <tr><th scope="row">電話番号</th><td>${pend}</td></tr>
                   <tr><th scope="row">メールアドレス</th><td>${pend}</td></tr>
                   <tr><th scope="row">販売価格</th><td>各商品ページに税込価格で表示しています</td></tr>
-                  <tr><th scope="row">商品代金以外の費用</th><td>送料、代引き手数料（代金引換の場合）、ギフト包装料（ご希望の場合）</td></tr>
-                  <tr><th scope="row">お支払い方法</th><td>${PAYMENTS.map((p) => p.label).join('、')}</td></tr>
+                  <tr><th scope="row">商品代金以外の費用</th><td>送料、ギフト包装料（ご希望の場合）</td></tr>
+                  <tr><th scope="row">お支払い方法</th><td>クレジットカード（Stripeによる決済）</td></tr>
+                  <tr><th scope="row">お支払い時期</th><td>ご注文の確定時</td></tr>
                   <tr><th scope="row">引き渡し時期</th><td>「送料・お届け」をご覧ください</td></tr>
                   <tr><th scope="row">返品・交換</th><td>「返品・交換」をご覧ください</td></tr>
                 </tbody></table></div>
@@ -938,7 +997,12 @@
     if (id === 'main' && currentRoute) return;
     teardownPage();
     const p = id.startsWith('item-') ? S.product(id.slice(5)) : null;
-    if (p && S.isVisible(p)) {
+    const ev = settings().event;
+    if (ev && ev.slug && id === ev.slug) {
+      renderEvent(ev);
+      document.title = `${ev.title}｜${SITE}`;
+      currentRoute = id;
+    } else if (p && S.isVisible(p)) {
       renderProduct(p);
       document.title = `${p.name}｜${SITE}`;
       currentRoute = id;

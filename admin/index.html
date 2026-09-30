@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Josefin+Sans:wght@300;400&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.38' r='.7'%3E%3Cstop offset='0' stop-color='%23fdeab0'/%3E%3Cstop offset='.6' stop-color='%23efcb78'/%3E%3Cstop offset='1' stop-color='%23d7ac58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="../css/style.css?v=7">
-<link rel="stylesheet" href="../css/admin.css?v=3">
+<link rel="stylesheet" href="../css/style.css?v=9">
+<link rel="stylesheet" href="../css/admin.css?v=5">
 </head>
 <body class="admin" data-page="admin">
 <a class="skip-link" href="#admMain">本文へ移動</a>
@@ -30,6 +30,8 @@
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>カテゴリ</a>
       <a href="#orders" data-nav="orders">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.5h10v15l-2.5-1.5L10 17.5 7.5 16 5 17.5z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 7h5M7.5 10h5" stroke="currentColor" stroke-width="1.2"/></svg>注文<span class="adm-nav__count" id="navOrderCount" hidden></span></a>
+      <a href="#event" data-nav="event">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="12" y="3" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3" y="12" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M12 12h2v2h-2zM15 15h2v2h-2zM12 16h1M16 12h1" stroke="currentColor" stroke-width="1.2"/></svg>イベントページ</a>
       <a href="#settings" data-nav="settings">
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6" stroke="currentColor" stroke-width="1.2"/></svg>ショップ設定</a>
       <a href="#data" data-nav="data">
@@ -49,8 +51,9 @@
 <p class="visually-hidden" id="admStatus" role="status"></p>
 <div class="adm-modal" id="admModal" hidden></div>
 
-<script src="../js/store.js?v=7"></script>
-<script src="../js/ui.js?v=7"></script>
-<script src="../js/admin.js?v=3"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="../js/store.js?v=9"></script>
+<script src="../js/ui.js?v=9"></script>
+<script src="../js/admin.js?v=5"></script>
 </body>
 </html>

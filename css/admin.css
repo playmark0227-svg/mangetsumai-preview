@@ -109,7 +109,7 @@ body.admin :focus-visible { outline: 2px solid var(--moon); outline-offset: 2px;
 .adm-stat dd small { font-family: var(--font-round); font-size: 12px; color: var(--text-dim); }
 .adm-stat a { font-size: 12px; color: var(--gold-300); margin-top: 4px; }
 .adm-grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.adm-grid2 .adm-card + .adm-card { margin-top: 0; }
+.adm-grid2 > .adm-card + .adm-card { margin-top: 0; }
 .adm-howto { display: grid; gap: 10px; font-size: 13.5px; color: var(--text); }
 .adm-howto li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
 .adm-howto b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--gold-400); color: var(--gold-300); font-family: var(--font-display); font-size: 13px; font-weight: 500; }
@@ -358,6 +358,20 @@ html:has(body.admin) { scroll-padding-top: 16px; scroll-padding-bottom: 120px; }
   .adm-table--orders td[data-label]::before { content: attr(data-label); margin-right: 8px; font-size: 11.5px; color: var(--text-faint); }
   .adm-table--orders .adm-num { text-align: left; }
   .adm-table--orders .adm-order-detail td { grid-column: 1 / -1; }
+  .adm-table--orders tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .adm-table--orders td.nowrap { white-space: normal; }
+  .adm-table--orders td[data-label="商品"] { grid-column: 1 / -1; }
+  .adm-table--orders td[data-label]::before { display: block; margin: 0 0 2px; }
   .adm-cat-table th:nth-child(3), .adm-cat-table td:nth-child(3) { display: none; }
   .adm-cat-table input[data-cname] { min-width: 9em; width: 100%; }
 }
+
+/* event page admin */
+.pill--event { color: var(--moon); margin-top: 4px; }
+.adm-qr { display: grid; gap: 12px; justify-items: start; }
+.adm-qr__img { width: 240px; height: 240px; background: #fff; padding: 6px; image-rendering: pixelated; box-shadow: 0 0 0 1px var(--line); }
+.adm-qr__url { max-width: 100%; }
+.adm-qr__url code { display: block; font-size: 12px; color: var(--text-dim); word-break: break-all; line-height: 1.6; }
+body.admin input[type="date"] { color-scheme: dark; }
+
+.adm-lead, .adm-check small { word-break: auto-phrase; }

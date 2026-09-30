@@ -18,7 +18,7 @@
 
   const STATUS = { published: '公開中', draft: '非公開', soldout: '売り切れ' };
   const ORDER_STATUS = { new: '新規', preparing: '発送準備中', shipped: '発送済み', canceled: 'キャンセル' };
-  const BAG_STYLES = { single: '1袋', double: '2袋セット', seal: '新米シール付き', phases: '定期便（月の満ち欠け）' };
+  const BAG_STYLES = { single: '1袋', double: '2袋セット', seal: '新米シール付き', phases: '定期便（月の満ち欠け）', plain: '無地の紙袋（玄米など）' };
   const BUILTIN_IMAGES = [
     { src: 'assets/img/bowl.webp', alt: '茶碗に盛った炊きたてのごはん', fit: 'contain' },
     { src: 'assets/img/rice-hand-sm.webp', alt: '手のひらにすくった精米', fit: 'cover' },
@@ -174,6 +174,10 @@
             <h2>在庫が少ない商品</h2>
             ${lowStock.length ? `<ul class="adm-checks">${lowStock.map((p) => `<li class="adm-prod">${thumb(p)}<span class="adm-prod__name"><a href="#product-${esc(p.id)}">${esc(p.name)}</a><small>${p.variants.filter((v) => v.stock !== null && v.stock <= 5).map((v) => `${esc(v.label)} 残り${v.stock}`).join('／')}</small></span></li>`).join('')}</ul>`
               : '<p class="adm-muted">在庫が5点以下の商品はありません（在庫を管理している商品のみ表示）。</p>'}
+          </section>
+          <section class="adm-card">
+            <h2>イベントページ</h2>
+            ${(() => { const e = c.settings.event; const on = S.eventActive(e); return `<p><span class="pill pill--${on ? 'published' : 'draft'}">${on ? '公開中' : '公開していません'}</span>　${esc(e.title)}</p><p class="adm-muted" style="margin-top:6px">イベントからの注文：${orders.filter((o) => o.source === e.slug).length}件　<a class="link" href="#event">QRコード・設定</a></p>`; })()}
           </section>
           <section class="adm-card">
             <h2>このデモの使い方</h2>
@@ -893,10 +897,14 @@
   /* =========================================================
      Orders
      ========================================================= */
-  const orderState = { status: '', open: null };
+  const orderState = { status: '', src: '', open: null };
   function renderOrders() {
     const all = S.orders();
-    const list = all.filter((o) => !orderState.status || o.status === orderState.status);
+    const sources = [...new Set(all.map((o) => o.source).filter(Boolean))];
+    // drop a source filter that no longer matches any order (the select would be hidden)
+    if (!sources.length || (orderState.src && orderState.src !== '__shop' && !sources.includes(orderState.src))) orderState.src = '';
+    const list = all.filter((o) => (!orderState.status || o.status === orderState.status)
+      && (!orderState.src || (orderState.src === '__shop' ? !o.source : o.source === orderState.src)));
     main.innerHTML = `
       ${head('注文', { lead: 'ショップで確定した注文が届きます（デモのため、このブラウザで行った注文だけが表示されます）。状態を変えて、発送の進み具合を管理できます。' })}
       <div class="adm-toolbar">
@@ -905,6 +913,13 @@
           <option value="">すべての状態（${all.length}）</option>
           ${Object.entries(ORDER_STATUS).map(([k, v]) => `<option value="${k}" ${orderState.status === k ? 'selected' : ''}>${v}（${all.filter((o) => o.status === k).length}）</option>`).join('')}
         </select>
+        ${sources.length ? `
+        <label class="visually-hidden" for="oSrc">注文の経路で絞り込む</label>
+        <select class="select" id="oSrc">
+          <option value="">すべての経路</option>
+          ${sources.map((k) => `<option value="${esc(k)}" ${orderState.src === k ? 'selected' : ''}>イベントページから（${all.filter((o) => o.source === k).length}）</option>`).join('')}
+          <option value="__shop" ${orderState.src === '__shop' ? 'selected' : ''}>通常のショップから（${all.filter((o) => !o.source).length}）</option>
+        </select>` : ''}
       </div>
       ${list.length ? `
       <div class="adm-table-wrap">
@@ -915,7 +930,7 @@
               <tr>
                 <td class="nowrap"><button class="adm-toggle" type="button" data-open="${esc(o.no)}" aria-expanded="${orderState.open === o.no}" aria-controls="od-${esc(o.no)}">${esc(o.no)}</button></td>
                 <td class="nowrap" data-label="日時">${fmtDate(o.at)}</td>
-                <td data-label="お客様">${esc(cu.name || '')}${o.shipTo ? '<br><span class="adm-faint">別住所へお届け</span>' : ''}</td>
+                <td data-label="お客様">${esc(cu.name || '')}${o.shipTo ? '<br><span class="adm-faint">別住所へお届け</span>' : ''}${o.source ? '<br><span class="pill pill--event">イベント</span>' : ''}</td>
                 <td data-label="商品">${items.map((it) => `${esc(it.name)}${vtxt(it)} ×${esc(it.qty)}`).join('<br>')}</td>
                 <td class="adm-num" data-label="合計">¥${yen(o.total)}</td>
                 <td class="nowrap" data-label="お支払い">${esc(o.pay)}</td>
@@ -930,15 +945,16 @@
                 <td colspan="7">
                   <div class="adm-order-grid">
                     <div><h3>ご注文者さま</h3><ul><li>${esc(cu.name)}（${esc(cu.kana)}）</li><li>〒${esc(cu.zip)} ${esc(cu.address)}</li><li>${esc(cu.tel)}</li><li>${esc(cu.email)}</li></ul></div>
-                    <div><h3>お届け先</h3><ul>${o.shipTo ? `<li>${esc(o.shipTo.name)} さま</li><li>〒${esc(o.shipTo.zip)} ${esc(o.shipTo.address)}</li><li>${esc(o.shipTo.tel)}</li>` : '<li>ご注文者さまと同じ</li>'}<li>希望日：${esc(o.date || (o.preorder ? '予約商品の発送にあわせる' : '最短'))}／時間帯：${esc(o.time || '指定なし')}</li>${o.noshi ? `<li>のし名入れ：${esc(o.noshi)}</li>` : ''}</ul></div>
-                    <div><h3>内訳</h3><ul>${items.map((it) => `<li>${esc(it.name)}${vtxt(it)}${it.gift ? `（${esc(it.gift)}）` : ''} ×${esc(it.qty)}　¥${yen(it.total)}</li>`).join('')}<li>送料 ¥${yen(o.ship)}${o.cod ? `／代引き手数料 ¥${yen(o.cod)}` : ''}</li><li><b>合計 ¥${yen(o.total)}</b></li>${o.memo ? `<li>備考：${esc(o.memo)}</li>` : ''}</ul></div>
+                    <div><h3>お届け先</h3><ul>${o.shipTo ? `<li>${esc(o.shipTo.name)} さま</li><li>〒${esc(o.shipTo.zip)} ${esc(o.shipTo.address)}</li><li>${esc(o.shipTo.tel)}</li>` : '<li>ご注文者さまと同じ</li>'}<li>希望日：${esc(o.date || (o.preorder ? '予約商品の発送にあわせる' : o.source ? 'イベント注文（日付指定なし）' : '最短'))}／時間帯：${esc(o.time || '指定なし')}</li>${o.noshi ? `<li>のし名入れ：${esc(o.noshi)}</li>` : ''}</ul></div>
+                    <div><h3>内訳</h3><ul>${items.map((it) => `<li>${esc(it.name)}${vtxt(it)}${it.gift ? `（${esc(it.gift)}）` : ''} ×${esc(it.qty)}　¥${yen(it.total)}</li>`).join('')}<li>送料 ¥${yen(o.ship)}</li><li><b>合計 ¥${yen(o.total)}</b></li>${o.memo ? `<li>備考：${esc(o.memo)}</li>` : ''}</ul></div>
                   </div>
                 </td>
               </tr>`; }).join('')}
           </tbody>
         </table>
-      </div>` : `<div class="adm-card adm-empty"><span class="empty__moon" aria-hidden="true"></span><p>${all.length ? 'この状態の注文はありません。' : 'まだ注文はありません。ショップで試しに注文すると、ここに表示されます。'}</p><a class="adm-btn" href="../shop.html" target="_blank" rel="noopener">ショップを開く${ICON.ext}</a></div>`}`;
+      </div>` : `<div class="adm-card adm-empty"><span class="empty__moon" aria-hidden="true"></span><p>${all.length ? 'この条件の注文はありません。' : 'まだ注文はありません。ショップで試しに注文すると、ここに表示されます。'}</p><a class="adm-btn" href="../shop.html" target="_blank" rel="noopener">ショップを開く${ICON.ext}</a></div>`}`;
     $('#oStatus').addEventListener('change', (e) => { orderState.status = e.target.value; renderOrders(); $('#oStatus').focus(); });
+    if ($('#oSrc')) $('#oSrc').addEventListener('change', (e) => { orderState.src = e.target.value; renderOrders(); $('#oSrc').focus(); });
   }
   function orderAction(e) {
     const t = e.target.closest('[data-open]');
@@ -960,6 +976,115 @@
   }
 
   /* =========================================================
+     Event page (高輪) + QR code
+     ========================================================= */
+  // preview=1 keeps the owner's own browser from being tagged as an event visitor
+  const eventURL = (e, preview = false) => new URL(`../shop.html${preview ? '?preview=1' : ''}#${e.slug}`, location.href).href;
+  function qrCanvas(text, size = 1024) {
+    if (!window.qrcode) return null;
+    const qr = window.qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount(), margin = 4, cell = Math.floor(size / (n + margin * 2));
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = cell * (n + margin * 2);
+    const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#1b222b';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+    return cv;
+  }
+  function renderEventAdmin() {
+    const c = S.catalog();
+    const e = c.settings.event;
+    const active = S.eventActive(e);
+    const state = !e.enabled ? '非公開' : active ? '公開中' : (e.start && S.today() < e.start ? '公開前' : '公開終了');
+    const url = eventURL(e);
+    const previewURL = eventURL(e, true);
+    const cv = qrCanvas(url, 720);
+    const n = S.orders().filter((o) => o.source === e.slug).length;
+    const fmt = (d) => (d ? d.replace(/-/g, '/') : '指定なし');
+    main.innerHTML = `
+      ${head('イベントページ', { actions: `<a class="adm-btn" href="${esc(previewURL)}" target="_blank" rel="noopener">ページを見る${ICON.ext}</a>`, lead: '高輪のイベント会場で、QRコードから開いてもらうページです。表示期間のあいだだけ公開され、トップページとショップにもバナーが出ます。このページから注文すると、注文一覧に「イベント」と表示されます。' })}
+      <div class="adm-grid2">
+        <form class="adm-form" id="evForm" novalidate>
+          <section class="adm-sec" aria-labelledby="ev1">
+            <h2 id="ev1">公開の設定</h2>
+            <label class="adm-check"><input type="checkbox" id="ev-enabled" ${e.enabled ? 'checked' : ''}><span>イベントページを公開する<small>チェックを外すと、期間中でもページとバナーを隠します</small></span></label>
+            <div class="adm-fields adm-fields--3">
+              <div class="adm-field"><label for="ev-date">開催日</label><input class="input" id="ev-date" type="date" value="${esc(e.date)}"></div>
+              <div class="adm-field"><label for="ev-start">表示の開始日</label><input class="input" id="ev-start" type="date" value="${esc(e.start)}"></div>
+              <div class="adm-field"><label for="ev-end">表示の終了日</label><input class="input" id="ev-end" type="date" value="${esc(e.end)}"><p class="adm-hint">目安はイベントから3か月ほど</p></div>
+            </div>
+            <p class="adm-error" id="ev-err" hidden></p>
+          </section>
+          <section class="adm-sec" aria-labelledby="ev2">
+            <h2 id="ev2">ページの内容</h2>
+            <div class="adm-field"><label for="ev-title">見出し</label><input class="input" id="ev-title" value="${esc(e.title)}" maxlength="40"></div>
+            <div class="adm-field"><label for="ev-lead">ごあいさつ文</label><textarea class="textarea" id="ev-lead" rows="3" maxlength="200">${esc(e.lead)}</textarea></div>
+            <div class="adm-field"><label for="ev-ship">お届けの案内</label><input class="input" id="ev-ship" value="${esc(e.shipNote)}" maxlength="60"><p class="adm-hint">このページから注文した方の確認画面・完了画面にも表示されます</p></div>
+            <fieldset class="adm-field" style="border:0;margin:0;padding:0">
+              <legend class="adm-legend">ページで紹介する商品（上から順に表示）</legend>
+              <div class="adm-checks" style="margin-top:8px">
+                ${[...e.products.map((id) => c.products.find((p) => p.id === id)).filter(Boolean), ...c.products.filter((p) => !e.products.includes(p.id))].map((p) => `
+                  <label class="adm-check"><input type="checkbox" name="ev-prod" value="${esc(p.id)}" ${e.products.includes(p.id) ? 'checked' : ''}><span>${esc(p.name)}${p.status === 'draft' ? '<small>非公開の商品です（ページには表示されません）</small>' : ''}</span></label>`).join('')}
+              </div>
+            </fieldset>
+          </section>
+          <div><button class="btn btn--gold btn--sm" type="submit">イベントページを保存する</button></div>
+        </form>
+        <div>
+          <section class="adm-card adm-qr">
+            <h2>会場用のQRコード</h2>
+            <p class="adm-muted">いまの状態：<span class="pill pill--${active ? 'published' : 'draft'}">${state}</span>（${fmt(e.start)}〜${fmt(e.end)}）</p>
+            ${cv ? `<img class="adm-qr__img" src="${cv.toDataURL('image/png')}" alt="イベントページのQRコード" width="240" height="240">` : '<p class="adm-error">QRコードを作れませんでした（ネットワークにつながっているか確認してください）。</p>'}
+            <p class="adm-qr__url"><code id="evUrl">${esc(url)}</code></p>
+            <div class="adm-row-actions" style="justify-content:flex-start">
+              ${cv ? '<button class="adm-btn" type="button" id="qrSave">QRコードを画像で保存</button>' : ''}
+              <button class="adm-btn" type="button" id="urlCopy">URLをコピー</button>
+            </div>
+            <p class="adm-hint" style="margin-top:10px">チラシやPOPに印刷するときは、画像で保存したQRコードを使ってください。デモ版のURLなので、本番の公開後に作り直します。</p>
+          </section>
+          <section class="adm-card">
+            <h2>イベントからの注文</h2>
+            <p><b style="font-size:28px;color:var(--gold-300);font-family:var(--font-display)">${n}</b> 件</p>
+            ${n ? `<p><a class="link" href="#orders" data-src-filter="${esc(e.slug)}">注文一覧で見る</a></p>` : ''}
+          </section>
+        </div>
+      </div>`;
+    const save1 = $('#qrSave');
+    if (save1) save1.addEventListener('click', () => {
+      const big = qrCanvas(url, 1600);
+      const a = document.createElement('a');
+      a.href = big.toDataURL('image/png');
+      a.download = `mangetsu-event-${e.slug}-qr.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('QRコードを保存しました');
+    });
+    $('#urlCopy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url); toast('URLをコピーしました'); }
+      catch { const r = document.createRange(); r.selectNodeContents($('#evUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('URLを選択しました。コピーしてお使いください。'); }
+    });
+    $('#evForm').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const start = $('#ev-start').value, end = $('#ev-end').value;
+      if (start && end && start > end) { showErr('ev-err', '表示の終了日は、開始日より後の日付にしてください。', '#ev-end'); $('#ev-end').focus(); return; }
+      showErr('ev-err', '', '#ev-end');
+      const cat = clone(S.catalog());
+      cat.settings.event = {
+        ...cat.settings.event,
+        enabled: $('#ev-enabled').checked,
+        date: $('#ev-date').value, start, end,
+        title: $('#ev-title').value.trim() || S.DEFAULT_EVENT.title,
+        lead: $('#ev-lead').value.trim(),
+        shipNote: $('#ev-ship').value.trim() || S.DEFAULT_EVENT.shipNote,
+        products: $$('input[name="ev-prod"]:checked').map((x) => x.value),
+      };
+      if (save(cat, 'イベントページを保存しました', { href: previewURL, text: 'ページで確認' })) { formDirty = false; renderEventAdmin(); focusAfter('#evForm [type=submit]'); }
+    });
+  }
+
+  /* =========================================================
      Settings
      ========================================================= */
   function renderSettings() {
@@ -971,12 +1096,11 @@
       ${head('ショップ設定')}
       <form class="adm-form" id="setForm" novalidate>
         <section class="adm-sec" aria-labelledby="ss1">
-          <h2 id="ss1">送料・手数料<small>金額はすべて税込・円</small></h2>
+          <h2 id="ss1">送料・ギフト包装<small>金額はすべて税込・円</small></h2>
           <div class="adm-fields adm-fields--3">
             ${num('s-ship', '送料', s.shipFee)}
             ${num('s-free', '送料無料になるご注文金額', s.freeShipOver, '0 にすると、常に送料無料になります')}
             ${num('s-gift', 'ギフト包装・のし（1点あたり）', s.giftFee)}
-            ${num('s-cod', '代引き手数料', s.codFee)}
             ${num('s-max', '同じ商品を1回で買える上限（点）', s.maxQty, '1〜99')}
           </div>
         </section>
@@ -989,11 +1113,16 @@
               <select class="select" id="s-news-link"><option value="">オンラインショップの一覧</option>${c.products.map((p) => `<option value="${esc(p.id)}" ${s.news.link === p.id ? 'selected' : ''}>${esc(p.name)}${p.status === 'draft' ? '（非公開）' : ''}</option>`).join('')}</select></div>
           </div>
         </section>
+        <section class="adm-sec" aria-labelledby="ss3">
+          <h2 id="ss3">お支払い方法</h2>
+          <p>クレジットカード（Stripe）で受け付けます。カード決済の手数料（Stripeの標準は売上の3.6%）は、商品価格や送料に含めて設定してください。</p>
+          <p class="adm-hint">本番では、Stripeのアカウント登録（入金先の銀行口座の設定と本人確認）が必要です。</p>
+        </section>
         <div><button class="btn btn--gold btn--sm" type="submit">設定を保存する</button></div>
       </form>`;
     $('#setForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const ids = ['#s-ship', '#s-free', '#s-gift', '#s-cod', '#s-max'];
+      const ids = ['#s-ship', '#s-free', '#s-gift', '#s-max'];
       ids.forEach((id) => $(id).removeAttribute('aria-invalid'));
       const bad = ids.filter((id) => !/^\d{1,7}$/.test($(id).value.trim()) || (id === '#s-max' && (Number($(id).value) < 1 || Number($(id).value) > 99)));
       if (bad.length) {
@@ -1007,7 +1136,6 @@
       cat.settings.shipFee = n('#s-ship');
       cat.settings.freeShipOver = n('#s-free');
       cat.settings.giftFee = n('#s-gift');
-      cat.settings.codFee = n('#s-cod');
       cat.settings.maxQty = Math.min(99, Math.max(1, n('#s-max') || 1));
       cat.settings.news = { show: $('#s-news-show').checked, text: $('#s-news-text').value.trim(), link: $('#s-news-link').value };
       if (save(cat, '設定を保存しました')) { formDirty = false; renderSettings(); focusAfter('#setForm [type=submit]'); }
@@ -1041,7 +1169,7 @@
       <section class="adm-card">
         <h2>リセット</h2>
         <div class="adm-actions-list">
-          <div class="adm-action"><div><h3>商品データを最初の状態に戻す</h3><p>追加・編集した商品、カテゴリ、設定をすべて取り消して、最初に用意した4商品に戻します。</p></div><button class="adm-btn adm-btn--danger" type="button" id="resetBtn">最初の状態に戻す</button></div>
+          <div class="adm-action"><div><h3>商品データを最初の状態に戻す</h3><p>追加・編集した商品、カテゴリ、設定をすべて取り消して、最初に用意した商品データに戻します。</p></div><button class="adm-btn adm-btn--danger" type="button" id="resetBtn">最初の状態に戻す</button></div>
           <div class="adm-action"><div><h3>注文データを消す</h3><p>注文一覧に表示されている試しの注文をすべて消します。</p></div><button class="adm-btn adm-btn--danger" type="button" id="clearOrdersBtn" ${S.orders().length ? '' : 'disabled'}>注文データを消す</button></div>
         </div>
       </section>
@@ -1088,8 +1216,8 @@
   /* =========================================================
      Router
      ========================================================= */
-  const ROUTES = { dashboard: renderDashboard, products: renderProducts, categories: renderCategories, orders: renderOrders, settings: renderSettings, data: renderData };
-  const TITLES = { dashboard: 'ダッシュボード', products: '商品', categories: 'カテゴリ', orders: '注文', settings: 'ショップ設定', data: 'データ管理' };
+  const ROUTES = { dashboard: renderDashboard, products: renderProducts, categories: renderCategories, orders: renderOrders, event: renderEventAdmin, settings: renderSettings, data: renderData };
+  const TITLES = { dashboard: 'ダッシュボード', products: '商品', categories: 'カテゴリ', orders: '注文', event: 'イベントページ', settings: 'ショップ設定', data: 'データ管理' };
   let currentRoute = null;
   let formDirty = false; // unsaved typing in 設定 / カテゴリを追加
   const routeId = () => { try { return decodeURIComponent(location.hash.slice(1)).split('?')[0] || 'dashboard'; } catch { return 'dashboard'; } };
@@ -1136,6 +1264,8 @@
   main.addEventListener('click', (e) => {
     const f = e.target.closest('[data-filter]');
     if (f) { e.preventDefault(); listState.status = f.dataset.filter; location.hash = 'products'; return; }
+    const sf = e.target.closest('[data-src-filter]');
+    if (sf) { e.preventDefault(); orderState.src = sf.dataset.srcFilter; orderState.status = ''; location.hash = 'orders'; return; }
     if (currentRoute === 'products') productAction(e);
     else if (currentRoute === 'categories') categoryAction(e);
     else if (currentRoute === 'orders') orderAction(e);
@@ -1157,8 +1287,8 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's' && draft && $('#edForm') && $('#admModal').hidden) { e.preventDefault(); $('#edForm').requestSubmit(); }
   });
   window.addEventListener('beforeunload', (e) => { if (hasUnsaved()) { e.preventDefault(); e.returnValue = ''; } });
-  main.addEventListener('input', (e) => { if (e.target.closest('#setForm, #catAdd')) formDirty = true; });
-  main.addEventListener('change', (e) => { if (e.target.closest('#setForm, #catAdd')) formDirty = true; });
+  main.addEventListener('input', (e) => { if (e.target.closest('#setForm, #catAdd, #evForm')) formDirty = true; });
+  main.addEventListener('change', (e) => { if (e.target.closest('#setForm, #catAdd, #evForm')) formDirty = true; });
   $('.skip-link').addEventListener('click', (e) => { e.preventDefault(); main.focus(); });
   window.addEventListener('hashchange', onHashChange);
 

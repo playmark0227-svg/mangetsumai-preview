@@ -10,10 +10,13 @@
   'use strict';
 
   const KEYS = {
-    catalog: 'mangetsu.catalog.v1',
+    // v2: 2026-10-01 meeting spec (5kg / 10kg / 30kg 玄米, card payment, 高輪 event page)
+    catalog: 'mangetsu.catalog.v2',
     cart: 'mangetsu.cart.v1',
-    orders: 'mangetsu.orders.v1',
+    orders: 'mangetsu.orders.v2',
   };
+  // clean up data from earlier demo versions (old catalog, test orders paid by 代金引換)
+  try { ['mangetsu.catalog.v1', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
 
   const RICE_STORE = '高温多湿・直射日光を避け、涼しい場所で保存してください';
   const PRODUCER = '満月農園（北海道士別市上士別町）';
@@ -25,21 +28,36 @@
     teishoku: { src: 'assets/img/photo/teishoku.webp', alt: '和食の食卓（イメージ）', fit: 'cover' },
     gohan: { src: 'assets/img/photo/gohan.webp', alt: '土鍋で炊いたごはん（イメージ）', fit: 'cover' },
     ears: { src: 'assets/img/photo/ears-moon.webp', alt: '月あかりに実る稲穂（イメージ）', fit: 'cover' },
+    paddy: { src: 'assets/img/photo/moon-paddy.webp', alt: '満月と実りの田んぼ（イメージ）', fit: 'cover' },
+    summer: { src: 'assets/img/photo/summer.webp', alt: '夏の夕暮れの田んぼ（イメージ）', fit: 'cover' },
   };
   const RICE_GALLERY = [G.bowl, G.grains, G.onigiri, G.hand];
 
+  const DEFAULT_EVENT = {
+    enabled: true,
+    slug: 'takanawa',
+    title: '高輪のイベントにご来場の皆さまへ',
+    date: '2026-10-25',
+    start: '2026-10-01',
+    end: '2027-01-25',
+    lead: 'ご来場ありがとうございます。満月米は、このページからスマートフォンでそのままご注文いただけます。重たいお米は、ご自宅まで直接お届けします。',
+    shipNote: 'イベントでのご注文は、1か月後をめどに順次お届けします。',
+    products: ['mangetsu-10kg', 'mangetsu-5kg', 'genmai-30kg'],
+  };
+
   const DEFAULT_CATALOG = {
-    version: 1,
+    version: 2,
     settings: {
       shipFee: 990,
       freeShipOver: 9000,
       giftFee: 220,
-      codFee: 330,
       maxQty: 20,
       news: { show: true, text: '令和8年産 新米のご予約受付中', link: 'shinmai-r8' },
+      event: DEFAULT_EVENT,
     },
     categories: [
-      { id: 'rice', name: 'お米' },
+      { id: 'rice', name: '精米' },
+      { id: 'genmai', name: '玄米' },
       { id: 'shinmai', name: '新米予約' },
       { id: 'teiki', name: '定期便' },
     ],
@@ -112,11 +130,32 @@
         ],
       },
       {
+        id: 'genmai-30kg',
+        name: '満月米 ななつぼし 玄米 30kg',
+        category: 'genmai',
+        status: 'published',
+        featured: true,
+        meta: '令和7年産・玄米',
+        badge: { text: '玄米', line: true },
+        card: '精米する前の玄米を、30kgの紙袋でお届けします。',
+        when: '3〜5営業日で発送',
+        lead: '精米する前の玄米を、30kgの紙袋でお届けします。ご自宅の精米機や近くの精米所で、食べる分だけ精米してお召し上がりください。',
+        ship: 'ご注文から3〜5営業日で発送します',
+        visual: { kind: 'bag', style: 'plain', label: '30kg' },
+        gallery: [G.paddy, G.ears, G.summer],
+        variants: [{ id: '30kg', label: '30kg', price: 24800, stock: null }],
+        options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
+        specs: [
+          ['名称', '玄米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '30kg'], ['調製年月日', '袋に記載'], ['包装', '紙袋'],
+          ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+        ],
+      },
+      {
         id: 'teiki',
         name: '満月米 定期便',
         category: 'teiki',
-        status: 'published',
-        featured: true,
+        status: 'draft',
+        featured: false,
         meta: '精米・毎月／隔月',
         badge: { text: '5%お得', line: true },
         card: 'お米を切らさない暮らしに。通常価格より5%お得です。',
@@ -178,7 +217,7 @@
       ship: str(p.ship),
       visual: p.visual && p.visual.kind === 'image' && str(p.visual.src)
         ? { kind: 'image', src: p.visual.src, fit: p.visual.fit === 'contain' ? 'contain' : 'cover' }
-        : { kind: 'bag', style: ['single', 'double', 'seal', 'phases'].includes(p.visual && p.visual.style) ? p.visual.style : 'single', label: str(p.visual && p.visual.label, '5kg') },
+        : { kind: 'bag', style: ['single', 'double', 'seal', 'phases', 'plain'].includes(p.visual && p.visual.style) ? p.visual.style : 'single', label: str(p.visual && p.visual.label, '5kg') },
       gallery: (Array.isArray(p.gallery) ? p.gallery : []).filter((g) => g && str(g.src)).map((g) => ({ src: g.src, alt: str(g.alt), fit: g.fit === 'contain' ? 'contain' : 'cover' })),
       variants: variants.length ? variants : [{ id: 'v1', label: '通常', price: 0, stock: null }],
       options: {
@@ -191,6 +230,23 @@
       specs: (Array.isArray(p.specs) ? p.specs : []).filter((r) => Array.isArray(r) && (r[0] || r[1])).map((r) => [str(r[0]), str(r[1])]),
     };
   }
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const dateOr = (v, d) => (typeof v === 'string' && DATE_RE.test(v) ? v : d);
+  function normEvent(e) {
+    const d = DEFAULT_EVENT;
+    if (!e || typeof e !== 'object') return clone(d);
+    return {
+      enabled: e.enabled !== false,
+      slug: idOr(e.slug, d.slug),
+      title: str(e.title, d.title),
+      date: dateOr(e.date, ''),
+      start: dateOr(e.start, ''),
+      end: dateOr(e.end, ''),
+      lead: str(e.lead, d.lead),
+      shipNote: str(e.shipNote).trim() || d.shipNote,
+      products: (Array.isArray(e.products) ? e.products : []).filter((x) => typeof x === 'string' && ID_RE.test(x)),
+    };
+  }
   function normalize(c) {
     if (!c || !Array.isArray(c.products) || !Array.isArray(c.categories)) return clone(DEFAULT_CATALOG);
     const d = DEFAULT_CATALOG.settings;
@@ -198,14 +254,14 @@
     const news = s.news || {};
     const cSeen = new Set(), pSeen = new Set();
     return {
-      version: 1,
+      version: 2,
       settings: {
         shipFee: Math.max(0, int(s.shipFee, d.shipFee)),
         freeShipOver: Math.max(0, int(s.freeShipOver, d.freeShipOver)),
         giftFee: Math.max(0, int(s.giftFee, d.giftFee)),
-        codFee: Math.max(0, int(s.codFee, d.codFee)),
         maxQty: Math.min(99, Math.max(1, int(s.maxQty, d.maxQty))),
         news: { show: news.show !== false, text: str(news.text, d.news.text), link: str(news.link) },
+        event: normEvent(s.event),
       },
       categories: c.categories.filter((k) => k && ID_RE.test(str(k.id)) && !cSeen.has(k.id) && cSeen.add(k.id)).map((k) => ({ id: k.id, name: str(k.name) || k.id })),
       products: c.products.filter((p) => p && typeof p === 'object').map(normProduct).map((p) => { let id = p.id, n = 2; while (pSeen.has(id)) id = `${p.id.slice(0, 36)}-${n++}`; pSeen.add(id); return { ...p, id }; }),
@@ -244,6 +300,17 @@
   };
   // how many of this variant can be in one order
   const maxFor = (p, v) => Math.min(catalog().settings.maxQty, v.stock === null ? Infinity : v.stock);
+
+  /* ---------- event page (期間限定) ---------- */
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const eventActive = (e = catalog().settings.event) => !!e && e.enabled && (!e.start || today() >= e.start) && (!e.end || today() <= e.end);
+  // visitors who arrive through the event page: their next orders are tagged for 3 days
+  const SRC_KEY = 'mangetsu.source.v1';
+  const markEventVisit = (slug) => write(SRC_KEY, { src: slug, at: Date.now() });
+  const eventSource = () => {
+    const v = read(SRC_KEY);
+    return v && typeof v.src === 'string' && ID_RE.test(v.src) && Date.now() - v.at < 3 * 86400000 ? v.src : '';
+  };
 
   /* ---------- cart ---------- */
   function loadCart() {
@@ -299,7 +366,8 @@
   }
 
   window.MangetsuStore = {
-    KEYS, DEFAULT_CATALOG, clone, ID_RE,
+    KEYS, DEFAULT_CATALOG, DEFAULT_EVENT, clone, ID_RE,
+    today, eventActive, markEventVisit, eventSource,
     catalog, saveCatalog, resetCatalog, isCustomized, normalize,
     product, category, isVisible, visibleProducts, variantSoldOut, productSoldOut, minPrice, maxFor,
     loadCart, saveCart,
