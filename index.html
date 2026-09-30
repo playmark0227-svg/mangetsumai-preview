@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>満月米 オンラインショップ</title>
+<title>満月米｜北海道士別市 満月農園</title>
 <meta name="description" content="米-1グランプリ in らんこし 2025 金賞受賞。北海道士別市の満月農園が育てた、ななつぼし「満月米」の公式オンラインショップ。">
 <meta name="theme-color" content="#212a34">
 <meta name="robots" content="noindex, nofollow">
@@ -12,9 +12,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Maru+Gothic:wght@400;500&family=Josefin+Sans:wght@300;400&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300&text=%E5%8C%97%E6%B5%B7%E9%81%93%E5%A3%AB%E5%88%A5%E5%B8%82%E7%94%A3%E3%81%AA%E3%81%A4%E3%81%BC%E3%81%97&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.38' r='.7'%3E%3Cstop offset='0' stop-color='%23fdeab0'/%3E%3Cstop offset='.6' stop-color='%23efcb78'/%3E%3Cstop offset='1' stop-color='%23d7ac58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
-<body>
+<body data-page="home">
 <a class="skip-link" href="#main">本文へ移動</a>
 
 <!-- ============ Header ============ -->
@@ -31,10 +31,10 @@
       <ul>
         <li><a href="#story">満月農園</a></li>
         <li><a href="#why">美味しさの理由</a></li>
-        <li><a href="#products">商品一覧</a></li>
         <li><a href="#howto">炊き方</a></li>
         <li><a href="#furusato">ふるさと納税</a></li>
         <li><a href="#faq">よくある質問</a></li>
+        <li class="gnav__shop"><a href="shop.html"><span class="gnav__moon" aria-hidden="true"></span>オンラインショップ</a></li>
       </ul>
     </nav>
     <div class="site-header__actions">
@@ -54,14 +54,14 @@
 <div class="mobile-nav" id="mobileNav" hidden>
   <nav aria-label="モバイルメニュー">
     <ul>
+      <li class="mobile-nav__shop"><a href="shop.html"><span>オンラインショップ</span><small lang="en" aria-hidden="true">Online Shop</small></a></li>
       <li><a href="#story"><span>満月農園</span><small lang="en" aria-hidden="true">About</small></a></li>
       <li><a href="#why"><span>美味しさの理由</span><small lang="en" aria-hidden="true">Reason</small></a></li>
       <li><a href="#nanatsuboshi"><span>ななつぼし</span><small lang="en" aria-hidden="true">Variety</small></a></li>
-      <li><a href="#products"><span>商品一覧</span><small lang="en" aria-hidden="true">Online Shop</small></a></li>
       <li><a href="#howto"><span>おいしい炊き方</span><small lang="en" aria-hidden="true">How to cook</small></a></li>
       <li><a href="#furusato"><span>ふるさと納税</span><small lang="en" aria-hidden="true">Furusato</small></a></li>
       <li><a href="#faq"><span>よくある質問</span><small lang="en" aria-hidden="true">FAQ</small></a></li>
-      <li><a href="#guide"><span>ご利用ガイド</span><small lang="en" aria-hidden="true">Guide</small></a></li>
+      <li><a href="shop.html#guide"><span>ご利用ガイド</span><small lang="en" aria-hidden="true">Guide</small></a></li>
     </ul>
   </nav>
   <p class="mobile-nav__foot">一粒一粒に、士別の自然が詰まっています。</p>
@@ -111,13 +111,13 @@
       </div>
 
       <div class="hero__actions">
-        <a class="btn btn--gold" href="#products">満月米を購入する</a>
+        <a class="btn btn--gold" href="shop.html">満月米を購入する</a>
         <a class="btn btn--line" href="#furusato">ふるさと納税で選ぶ</a>
       </div>
 
-      <a class="hero__news" href="#item-shinmai-r8">
+      <a class="hero__news" id="heroNews" href="shop.html">
         <span class="hero__news-label">NEWS</span>
-        <span>令和8年産 新米のご予約受付中</span>
+        <span id="heroNewsText">令和8年産 新米のご予約受付中</span>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
       </a>
     </div>
@@ -153,6 +153,16 @@
     </div>
   </section>
 
+  <!-- Moonlit field (image band) -->
+  <section class="moonfield" aria-label="月あかりの田んぼ">
+    <picture>
+      <source media="(max-width: 760px)" srcset="assets/img/photo/moon-paddy-sm.webp">
+      <img src="assets/img/photo/moon-paddy.webp" alt="満月に照らされた、実りの季節の田んぼ" width="2400" height="1029" loading="lazy" decoding="async">
+    </picture>
+    <p class="moonfield__copy"><span>月あかりの下、</span><span>稲穂は実る。</span></p>
+    <p class="photo-note">写真はイメージです</p>
+  </section>
+
   <!-- Why -->
   <section class="section why" id="why" aria-labelledby="whyTitle">
     <div class="container">
@@ -178,6 +188,7 @@
               <circle cx="168" cy="30" r="3.2" class="spring"/>
             </svg>
             <p class="reason__caption">天塩川<span>最上流</span></p>
+            <span class="photo-note">写真はイメージです</span>
           </div>
           <p class="reason__text">山から湧き出た、天塩川の最上流のお水を使用しています。ミネラルがとても豊富です。</p>
         </article>
@@ -192,6 +203,7 @@
               <span class="temp-bar__end temp-bar__end--warm">夏</span>
             </div>
             <p class="reason__caption">年間の寒暖差<span>約60度</span></p>
+            <span class="photo-note">写真はイメージです</span>
           </div>
           <p class="reason__text">季節の寒暖差が年間60度ぐらいあります。寒くなると美味しくなる野菜があるように、お米も美味しくなります。</p>
         </article>
@@ -235,6 +247,21 @@
           <p>コシがあり<br>しっかりとした食感</p>
         </li>
       </ul>
+      <div class="scenes" role="list" aria-label="満月米のある食卓">
+        <figure class="scene" role="listitem">
+          <img src="assets/img/photo/onigiri-sm.webp" srcset="assets/img/photo/onigiri-sm.webp 800w, assets/img/photo/onigiri.webp 1600w" sizes="(max-width: 760px) 78vw, 380px" alt="竹の葉にのせた、海苔を巻いたおにぎり" width="800" height="597" loading="lazy" decoding="async">
+          <figcaption><b>お弁当や、おにぎりに</b><span>冷めてもおいしいから</span></figcaption>
+        </figure>
+        <figure class="scene" role="listitem">
+          <img src="assets/img/photo/teishoku-sm.webp" srcset="assets/img/photo/teishoku-sm.webp 800w, assets/img/photo/teishoku.webp 1600w" sizes="(max-width: 760px) 78vw, 380px" alt="ごはん、味噌汁、焼き鮭が並ぶ和食の食卓" width="800" height="597" loading="lazy" decoding="async">
+          <figcaption><b>毎日の食卓に</b><span>おかずの香りを邪魔しないから</span></figcaption>
+        </figure>
+        <figure class="scene" role="listitem">
+          <img src="assets/img/photo/grains-sm.webp" srcset="assets/img/photo/grains-sm.webp 640w, assets/img/photo/grains.webp 1200w" sizes="(max-width: 760px) 78vw, 380px" alt="枡からこぼれる、つややかな精米" width="640" height="640" loading="lazy" decoding="async">
+          <figcaption><b>一粒一粒を、味わって</b><span>粒立ちが良いから</span></figcaption>
+        </figure>
+      </div>
+      <p class="photo-note photo-note--center">写真はイメージです</p>
     </div>
   </section>
 
@@ -252,7 +279,8 @@
         <p class="sec-head__note">士別市上士別町の満月農園から、ご自宅へ直接お送りします。<br class="u-pc">令和8年産の新米は、ただいまご予約を受け付けています。</p>
       </header>
       <div class="product-grid" id="productGrid"></div>
-      <p class="products__foot">表示価格はすべて税込です。送料・お届けについては<a href="#guide">ご利用ガイド</a>をご覧ください。</p>
+      <p class="products__more"><a class="btn btn--line" href="shop.html"><span class="gnav__moon" aria-hidden="true"></span>オンラインショップで、すべての商品を見る</a></p>
+      <p class="products__foot">表示価格はすべて税込です。送料・お届けについては<a href="shop.html#guide">ご利用ガイド</a>をご覧ください。</p>
     </div>
   </section>
 
@@ -265,6 +293,11 @@
           <h2 class="sec-title" id="howtoTitle">おいしい炊き方</h2>
           <p class="sec-head__note">ふっくら、粒の立ったごはんに炊き上げるための基本です。</p>
         </header>
+        <div class="howto__body">
+        <figure class="howto__photo">
+          <img src="assets/img/photo/gohan-sm.webp" srcset="assets/img/photo/gohan-sm.webp 800w, assets/img/photo/gohan.webp 1600w" sizes="(max-width: 960px) 90vw, 440px" alt="湯気の立つ、土鍋で炊きたてのごはん" width="800" height="597" loading="lazy" decoding="async">
+          <figcaption class="photo-note">写真はイメージです</figcaption>
+        </figure>
         <ol class="steps">
           <li class="step"><span class="step__num" aria-hidden="true">一</span><h3>はかる</h3><p>計量カップにすりきりで。1合は<span class="nw">約150g</span>です。</p></li>
           <li class="step"><span class="step__num" aria-hidden="true">二</span><h3>研ぐ</h3><p>最初の水はすぐに捨て、やさしく研いで水を<span class="nw">2〜3回</span>替えます。</p></li>
@@ -272,7 +305,8 @@
           <li class="step"><span class="step__num" aria-hidden="true">四</span><h3>炊く</h3><p>水加減は炊飯器の目盛りどおりに。お好みで加減してください。</p></li>
           <li class="step"><span class="step__num" aria-hidden="true">五</span><h3>ほぐす</h3><p>炊き上がったら10分ほど蒸らし、底から大きく混ぜます。</p></li>
         </ol>
-        <p class="howto__tip"><img src="assets/svg/icon-onigiri.svg" alt="" width="28" height="26">冷めてもおいしいので、お弁当や<span class="nw">おにぎり</span>にもぴったりです。</p>
+        </div>
+        <p class="howto__tip"><img src="assets/svg/icon-onigiri.svg" alt="" width="28" height="26"><span>冷めてもおいしいので、お弁当や<span class="nw">おにぎり</span>にもぴったりです。</span></p>
       </div>
     </div>
   </section>
@@ -332,7 +366,7 @@
         </details>
         <details class="qa">
           <summary><span class="qa__q" aria-hidden="true">Q</span>送料はいくらですか？</summary>
-          <div class="qa__a"><p>送料は990円です。税込9,000円以上のご注文で送料無料になります。<span class="nw">沖縄・離島</span>へのお届けは、送料を別途お見積もりいたします。</p></div>
+          <div class="qa__a"><p><span data-ship-text>送料990円。税込9,000円以上のご注文で送料無料</span>です。<span class="nw">沖縄・離島</span>へのお届けは、送料を別途お見積もりいたします。</p></div>
         </details>
         <details class="qa">
           <summary><span class="qa__q" aria-hidden="true">Q</span>お支払い方法は何がありますか？</summary>
@@ -343,8 +377,6 @@
   </section>
 </div>
 
-<!-- ============ Dynamic views (product / cart / checkout / thanks / guide) ============ -->
-<div id="view" class="view view--page" hidden></div>
 </main>
 
 <!-- ============ Footer ============ -->
@@ -364,10 +396,10 @@
         <div>
           <p class="site-footer__head">お買いもの</p>
           <ul>
-            <li><a href="#products">商品一覧</a></li>
-            <li><a href="#item-shinmai-r8">新米のご予約</a></li>
-            <li><a href="#item-teiki">定期便</a></li>
-            <li><a href="#cart">カート</a></li>
+            <li><a href="shop.html">オンラインショップ</a></li>
+            <li><a href="shop.html#cart">カート</a></li>
+            <li><a href="shop.html#guide">ご利用ガイド</a></li>
+            <li><a href="#furusato">ふるさと納税</a></li>
           </ul>
         </div>
         <div>
@@ -376,16 +408,15 @@
             <li><a href="#story">満月農園のこと</a></li>
             <li><a href="#why">美味しさの理由</a></li>
             <li><a href="#howto">おいしい炊き方</a></li>
-            <li><a href="#furusato">ふるさと納税</a></li>
+            <li><a href="#faq">よくある質問</a></li>
           </ul>
         </div>
         <div>
           <p class="site-footer__head">ご案内</p>
           <ul>
-            <li><a href="#guide">ご利用ガイド</a></li>
-            <li><a href="#faq">よくある質問</a></li>
-            <li><a href="#guide-law">特定商取引法に基づく表記</a></li>
-            <li><a href="#guide-privacy">プライバシーポリシー</a></li>
+            <li><a href="shop.html#guide-law">特定商取引法に基づく表記</a></li>
+            <li><a href="shop.html#guide-privacy">プライバシーポリシー</a></li>
+            <li><a href="admin/">管理画面（デモ）</a></li>
           </ul>
         </div>
       </nav>
@@ -413,6 +444,8 @@
 <div class="toast" id="toast" hidden></div>
 <p class="visually-hidden" id="srStatus" role="status"></p>
 
-<script src="js/app.js?v=4"></script>
+<script src="js/store.js?v=7"></script>
+<script src="js/ui.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>

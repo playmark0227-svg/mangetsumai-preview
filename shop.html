@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>満月米 オンラインショップ</title>
+<meta name="description" content="満月米のオンラインショップ。北海道士別市上士別町の満月農園から、ご自宅へ直接お届けします。">
+<meta name="theme-color" content="#212a34">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Maru+Gothic:wght@400;500&family=Josefin+Sans:wght@300;400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300&text=%E5%8C%97%E6%B5%B7%E9%81%93%E5%A3%AB%E5%88%A5%E5%B8%82%E7%94%A3%E3%81%AA%E3%81%A4%E3%81%BC%E3%81%97&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.38' r='.7'%3E%3Cstop offset='0' stop-color='%23fdeab0'/%3E%3Cstop offset='.6' stop-color='%23efcb78'/%3E%3Cstop offset='1' stop-color='%23d7ac58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css?v=7">
+</head>
+<body data-page="shop">
+<a class="skip-link" href="#main">本文へ移動</a>
+
+<!-- ============ Header ============ -->
+<header class="site-header" id="siteHeader">
+  <div class="site-header__inner">
+    <a class="logo" href="index.html" aria-label="満月米 トップへ">
+      <span class="logo__moon" aria-hidden="true"></span>
+      <span class="logo__text">
+        <span class="logo__name">満月米</span>
+        <span class="logo__sub">満月農園 オンラインショップ</span>
+      </span>
+    </a>
+    <nav class="gnav" aria-label="メインメニュー">
+      <ul>
+        <li><a href="index.html#story">満月農園</a></li>
+        <li><a href="index.html#why">美味しさの理由</a></li>
+        <li><a href="index.html#howto">炊き方</a></li>
+        <li><a href="index.html#furusato">ふるさと納税</a></li>
+        <li><a href="index.html#faq">よくある質問</a></li>
+        <li class="gnav__shop"><a href="shop.html" aria-current="page"><span class="gnav__moon" aria-hidden="true"></span>オンラインショップ</a></li>
+      </ul>
+    </nav>
+    <div class="site-header__actions">
+      <button class="cart-btn" type="button" id="cartOpen" aria-label="カートを見る" aria-controls="cartDrawer" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8.5h11l-1 11.2a1.5 1.5 0 0 1-1.5 1.3H9a1.5 1.5 0 0 1-1.5-1.3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.3 8.5V7a2.7 2.7 0 0 1 5.4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span class="cart-btn__label">カート</span>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
+      <button class="menu-btn" type="button" id="menuToggle" aria-label="メニューを開く" aria-controls="mobileNav" aria-expanded="false">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- mobile navigation -->
+<div class="mobile-nav" id="mobileNav" hidden>
+  <nav aria-label="モバイルメニュー">
+    <ul>
+      <li class="mobile-nav__shop"><a href="shop.html" aria-current="page"><span>オンラインショップ</span><small lang="en" aria-hidden="true">Online Shop</small></a></li>
+      <li><a href="index.html#story"><span>満月農園</span><small lang="en" aria-hidden="true">About</small></a></li>
+      <li><a href="index.html#why"><span>美味しさの理由</span><small lang="en" aria-hidden="true">Reason</small></a></li>
+      <li><a href="index.html#nanatsuboshi"><span>ななつぼし</span><small lang="en" aria-hidden="true">Variety</small></a></li>
+      <li><a href="index.html#howto"><span>おいしい炊き方</span><small lang="en" aria-hidden="true">How to cook</small></a></li>
+      <li><a href="index.html#furusato"><span>ふるさと納税</span><small lang="en" aria-hidden="true">Furusato</small></a></li>
+      <li><a href="index.html#faq"><span>よくある質問</span><small lang="en" aria-hidden="true">FAQ</small></a></li>
+      <li><a href="shop.html#guide"><span>ご利用ガイド</span><small lang="en" aria-hidden="true">Guide</small></a></li>
+    </ul>
+  </nav>
+  <p class="mobile-nav__foot">一粒一粒に、士別の自然が詰まっています。</p>
+</div>
+
+<main id="main">
+<div id="view" class="view view--page"></div>
+</main>
+
+<!-- ============ Footer ============ -->
+<footer class="site-footer">
+  <div class="container">
+    <p class="footer-mark" aria-hidden="true"><img src="assets/svg/rings.svg" alt="" width="50" height="24"><span>nanatsuboshi</span><i></i></p>
+    <div class="site-footer__grid">
+      <div class="site-footer__brand">
+        <a class="logo logo--footer" href="index.html" aria-label="満月米 トップへ">
+          <span class="logo__moon" aria-hidden="true"></span>
+          <span class="logo__text"><span class="logo__name">満月米</span><span class="logo__sub">満月農園 オンラインショップ</span></span>
+        </a>
+        <p class="site-footer__tagline">一粒一粒に、士別の自然が詰まっています。</p>
+        <p class="site-footer__addr">生産　満月農園<br>北海道士別市上士別町</p>
+      </div>
+      <nav class="site-footer__nav" aria-label="フッターメニュー">
+        <div>
+          <p class="site-footer__head">お買いもの</p>
+          <ul>
+            <li><a href="shop.html">オンラインショップ</a></li>
+            <li><a href="shop.html#cart">カート</a></li>
+            <li><a href="shop.html#guide">ご利用ガイド</a></li>
+            <li><a href="index.html#furusato">ふるさと納税</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="site-footer__head">満月米について</p>
+          <ul>
+            <li><a href="index.html#story">満月農園のこと</a></li>
+            <li><a href="index.html#why">美味しさの理由</a></li>
+            <li><a href="index.html#howto">おいしい炊き方</a></li>
+            <li><a href="index.html#faq">よくある質問</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="site-footer__head">ご案内</p>
+          <ul>
+            <li><a href="shop.html#guide-law">特定商取引法に基づく表記</a></li>
+            <li><a href="shop.html#guide-privacy">プライバシーポリシー</a></li>
+            <li><a href="admin/">管理画面（デモ）</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+    <div class="site-footer__bottom">
+      <p class="site-footer__demo">このサイトはデザイン提案用のデモです。価格・送料・お支払い方法などは仮の内容で、実際のご注文・決済は行われません。</p>
+      <p class="site-footer__copy"><small>&copy; 2026 満月農園</small></p>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ Cart drawer ============ -->
+<div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+<aside class="drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
+  <div class="drawer__head">
+    <h2 id="drawerTitle">カート</h2>
+    <button class="icon-btn" type="button" id="cartClose" aria-label="カートを閉じる">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+  </div>
+  <div class="drawer__body" id="drawerBody"></div>
+  <div class="drawer__foot" id="drawerFoot"></div>
+</aside>
+
+<div class="toast" id="toast" hidden></div>
+<p class="visually-hidden" id="srStatus" role="status"></p>
+
+<script src="js/store.js?v=7"></script>
+<script src="js/ui.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
+</body>
+</html>

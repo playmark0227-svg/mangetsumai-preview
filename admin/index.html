@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja" data-base="../">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>管理画面｜満月米</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#161c24">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Josefin+Sans:wght@300;400&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.38' r='.7'%3E%3Cstop offset='0' stop-color='%23fdeab0'/%3E%3Cstop offset='.6' stop-color='%23efcb78'/%3E%3Cstop offset='1' stop-color='%23d7ac58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../css/style.css?v=7">
+<link rel="stylesheet" href="../css/admin.css?v=3">
+</head>
+<body class="admin" data-page="admin">
+<a class="skip-link" href="#admMain">本文へ移動</a>
+<div class="adm">
+  <aside class="adm-side">
+    <a class="adm-brand" href="#dashboard">
+      <span class="logo__moon" aria-hidden="true"></span>
+      <span class="adm-brand__text"><b>満月米</b><small>管理画面（デモ）</small></span>
+    </a>
+    <nav class="adm-nav" aria-label="管理メニュー">
+      <a href="#dashboard" data-nav="dashboard">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h6v6H3zM11 3h6v4h-6zM11 9h6v8h-6zM3 11h6v6H3z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>ダッシュボード</a>
+      <a href="#products" data-nav="products">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 6.5h10l-.8 10.1a1.4 1.4 0 0 1-1.4 1.3H7.2a1.4 1.4 0 0 1-1.4-1.3z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7.8 6.5V5a2.2 2.2 0 0 1 4.4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>商品</a>
+      <a href="#categories" data-nav="categories">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>カテゴリ</a>
+      <a href="#orders" data-nav="orders">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.5h10v15l-2.5-1.5L10 17.5 7.5 16 5 17.5z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 7h5M7.5 10h5" stroke="currentColor" stroke-width="1.2"/></svg>注文<span class="adm-nav__count" id="navOrderCount" hidden></span></a>
+      <a href="#settings" data-nav="settings">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6" stroke="currentColor" stroke-width="1.2"/></svg>ショップ設定</a>
+      <a href="#data" data-nav="data">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="5" rx="6" ry="2.3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4 5v10c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V5M4 10c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>データ管理</a>
+    </nav>
+    <div class="adm-side__foot">
+      <a class="adm-ext" href="../shop.html" target="_blank" rel="noopener">ショップを見る<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h8v8M13 3 4 12" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span class="visually-hidden">（新しいタブで開きます）</span></a>
+      <a class="adm-ext" href="../" target="_blank" rel="noopener">トップページを見る<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h8v8M13 3 4 12" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span class="visually-hidden">（新しいタブで開きます）</span></a>
+      <p class="adm-note">デモ版のため、変更はこのブラウザの中にだけ保存されます。</p>
+    </div>
+  </aside>
+
+  <main class="adm-main" id="admMain" tabindex="-1"></main>
+</div>
+
+<div class="adm-toast" id="admToast" hidden></div>
+<p class="visually-hidden" id="admStatus" role="status"></p>
+<div class="adm-modal" id="admModal" hidden></div>
+
+<script src="../js/store.js?v=7"></script>
+<script src="../js/ui.js?v=7"></script>
+<script src="../js/admin.js?v=3"></script>
+</body>
+</html>

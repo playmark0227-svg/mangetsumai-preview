@@ -1,294 +1,102 @@
 /* =========================================================
-   満月米 オンラインショップ — app.js
-   静的なトップページ + ハッシュルーティングによる
-   商品詳細 / カート / ご購入手続き / ご利用ガイド
+   満月米 — app.js
+   トップページ（index.html）とオンラインショップ（shop.html）の動き。
+   商品データは store.js、表示部品は ui.js。
+   ショップはハッシュで画面を切り替える：
+   一覧 / #category-<id> / #item-<id> / #cart / #checkout / #checkout-confirm / #thanks / #guide
    ========================================================= */
 (() => {
   'use strict';
 
-  /* ---------- settings (仮の値) ---------- */
-  const SHIP_FEE = 990;
-  const FREE_SHIP_OVER = 9000;
-  const GIFT_FEE = 220;
-  const COD_FEE = 330;
-  const MAX_QTY = 20;
-  const STORAGE_KEY = 'mangetsu.cart.v1';
+  const S = window.MangetsuStore;
+  const { esc, yen, priceHTML, ICON_BAG, phaseSVG, visualHTML, imageHTML, cardHTML, stockNote } = window.MangetsuUI;
+
+  const PAGE = document.body.dataset.page;          // 'home' | 'shop'
+  const IS_SHOP = PAGE === 'shop';
+  const shopHref = (hash = '') => (IS_SHOP ? `#${hash}` : `shop.html${hash ? '#' + hash : ''}`);
+  const itemHref = (id) => shopHref(`item-${id}`);
+  const settings = () => S.catalog().settings;
+  const alwaysFree = (s = settings()) => s.shipFee === 0 || s.freeShipOver === 0;
+  const shipText = (s = settings()) => (alwaysFree(s) ? '全国送料無料' : `送料${yen(s.shipFee)}円。税込${yen(s.freeShipOver)}円以上のご注文で送料無料`);
 
   const GIFT_OPTIONS = [
-    { id: 'none', label: 'なし', fee: 0 },
-    { id: 'wrap', label: 'ギフト包装のみ', fee: GIFT_FEE },
-    { id: 'oseibo', label: 'ギフト包装＋のし「御歳暮」', fee: GIFT_FEE },
-    { id: 'orei', label: 'ギフト包装＋のし「御礼」', fee: GIFT_FEE },
-    { id: 'uchiiwai', label: 'ギフト包装＋のし「内祝」', fee: GIFT_FEE },
-    { id: 'muji', label: 'ギフト包装＋のし「無地」', fee: GIFT_FEE },
+    { id: 'none', label: 'なし', paid: false },
+    { id: 'wrap', label: 'ギフト包装のみ', paid: true },
+    { id: 'oseibo', label: 'ギフト包装＋のし「御歳暮」', paid: true },
+    { id: 'orei', label: 'ギフト包装＋のし「御礼」', paid: true },
+    { id: 'uchiiwai', label: 'ギフト包装＋のし「内祝」', paid: true },
+    { id: 'muji', label: 'ギフト包装＋のし「無地」', paid: true },
   ];
-
-  const BASE_SPEC = [
-    ['名称', '精米'],
-    ['原料玄米', '北海道産 ななつぼし {year}'],
-    ['内容量', '{weight}'],
-    ['精米年月日', '袋に記載'],
-    ['賞味期限', '精米日より1ヵ月（目安）'],
-    ['保存方法', '高温多湿・直射日光を避け、涼しい場所で保存してください'],
-    ['配送方法', '常温便'],
-    ['生産者', '満月農園（北海道士別市上士別町）'],
-  ];
-
-  const PRODUCTS = [
-    {
-      id: 'mangetsu-5kg',
-      name: '満月米 ななつぼし 5kg',
-      meta: '令和7年産・精米',
-      badge: { text: '定番', line: true },
-      card: 'まずはこちらから。毎日のごはんに、ちょうどいい量です。',
-      when: '3〜5営業日で発送',
-      lead: '北海道士別市上士別町の山奥で、天塩川最上流の水と大きな寒暖差のなかで育ったななつぼしです。冷めてもおいしく、お弁当やおにぎりにも向いています。',
-      art: { type: 'single' },
-      year: '令和7年産',
-      award: true,
-      variants: [{ id: '5kg', label: '5kg', weight: '5kg', price: 4980 }],
-      gift: true,
-      ship: 'ご注文から3〜5営業日で発送します',
-    },
-    {
-      id: 'mangetsu-10kg',
-      name: '満月米 ななつぼし 10kg（5kg×2袋）',
-      meta: '令和7年産・精米',
-      badge: { text: '2袋セット', line: true },
-      card: '5kgの袋が2つ。1袋ずつ開けられるので、最後までおいしく。',
-      when: '3〜5営業日で発送',
-      lead: '5kgの袋を2つお届けします。1袋ずつ開けられるので、たくさん召し上がるご家庭でも、最後までおいしさが続きます。',
-      art: { type: 'double' },
-      year: '令和7年産',
-      award: true,
-      variants: [{ id: '10kg', label: '10kg（5kg×2袋）', weight: '10kg（5kg×2袋）', price: 9680 }],
-      gift: true,
-      ship: 'ご注文から3〜5営業日で発送します',
-    },
-    {
-      id: 'shinmai-r8',
-      name: '満月米 新米 令和8年産',
-      meta: '精米・予約商品',
-      badge: { text: '予約受付中', line: false },
-      card: 'この秋に実った新米を、12月上旬より順次お届けします。',
-      when: '12月上旬より順次発送',
-      lead: 'この秋に実った、令和8年産の新米です。2026年12月上旬より順次お届けします。',
-      art: { type: 'single', seal: true },
-      year: '令和8年産',
-      variants: [
-        { id: '5kg', label: '5kg', weight: '5kg', price: 5280 },
-        { id: '10kg', label: '10kg（5kg×2袋）', weight: '10kg（5kg×2袋）', price: 10280 },
-      ],
-      gift: true,
-      ship: '2026年12月上旬より順次発送の予定です',
-      preorder: true,
-    },
-    {
-      id: 'teiki',
-      name: '満月米 定期便',
-      meta: '精米・毎月／隔月',
-      badge: { text: '5%お得', line: true },
-      card: 'お米を切らさない暮らしに。通常価格より5%お得です。',
-      when: '毎月・隔月でお届け',
-      lead: 'お届けの周期と量を選べる定期便です。お米を切らさないよう、通常価格より5%お得に満月米をお届けします。',
-      art: { type: 'single', phases: true },
-      year: '令和7年産（2026年12月上旬以降のお届け分は令和8年産）',
-      variants: [
-        { id: 'm5', label: '毎月 5kg', weight: '5kg', price: 4731 },
-        { id: 'b5', label: '隔月 5kg', weight: '5kg', price: 4731 },
-        { id: 'm10', label: '毎月 10kg', weight: '10kg（5kg×2袋）', price: 9196 },
-      ],
-      gift: false,
-      ship: '初回はご注文から3〜5営業日で発送します',
-      subscription: true,
-    },
-  ];
-
-  const byId = (id) => PRODUCTS.find((p) => p.id === id);
+  const giftFee = (g) => (g.paid ? settings().giftFee : 0);
+  const giftOf = (id) => GIFT_OPTIONS.find((x) => x.id === (id || 'none')) || GIFT_OPTIONS[0];
 
   /* ---------- helpers ---------- */
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const yen = (n) => n.toLocaleString('ja-JP');
-  const priceHTML = (n, { tax = true, from = false, per = '' } = {}) =>
-    `<span class="price"><span class="price__yen">¥</span>${yen(n)}${from ? '<span class="price__from">〜</span>' : ''}${tax ? '<span class="price__tax">税込</span>' : ''}${per ? `<span class="price__tax">／${per}</span>` : ''}</span>`;
-  const minPrice = (p) => Math.min(...p.variants.map((v) => v.price));
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const smooth = () => (reduceMotion ? 'auto' : 'smooth');
   // keep a few words that phrase-breaking tends to split on one line
   const NOBR = /(ななつぼし|おにぎり|召し上がる|2026年12月上旬)/g;
   const jp = (s) => esc(s).replace(NOBR, '<span class="nw">$1</span>');
-  const smooth = () => (reduceMotion ? 'auto' : 'smooth');
+  const view = () => $('#view');
 
-  const ICON_BAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8.5h11l-1 11.2a1.5 1.5 0 0 1-1.5 1.3H9a1.5 1.5 0 0 1-1.5-1.3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.3 8.5V7a2.7 2.7 0 0 1 5.4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
-
-  /* moon phase glyph for the steps bar: 1 crescent … 4 full */
-  const phaseSVG = (n) => {
-    const lit = ['', 'M8 1.5A6.5 6.5 0 0 1 8 14.5A4.2 6.5 0 0 0 8 1.5Z', 'M8 1.5A6.5 6.5 0 0 1 8 14.5Z', 'M8 1.5A6.5 6.5 0 0 1 8 14.5A4.2 6.5 0 0 1 8 1.5Z', ''][n];
-    return `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" class="${n === 4 ? 'full' : ''}"/>${lit ? `<path class="lit" d="${lit}"/>` : ''}</svg>`;
-  };
-
-  /* ---------- rice-bag illustration ---------- */
-  let uid = 0;
-  function bagSVG(art = {}, { title = '' } = {}) {
-    const u = 'm' + ++uid;
-    const zig = (() => {
-      let d = 'M18 50 L18 17';
-      const n = 20, w = (182 - 18) / n;
-      for (let i = 0; i < n; i++) d += ` L${(18 + w * i + w / 2).toFixed(1)} 11.5 L${(18 + w * (i + 1)).toFixed(1)} 17`;
-      return d + ' L182 50 Z';
-    })();
-    const body = 'M20 44 C18 120 13 214 9 282 C8.5 292 14 297 24 297 L176 297 C186 297 191.5 292 191 282 C187 214 182 120 180 44 Z';
-    const tick = (x, y, dx, dy) => `<path d="M${x} ${y + dy * 7} V${y} H${x + dx * 7}" fill="none" stroke="#d0ad6d" stroke-width=".8"/>`;
-    const label = (weight) => `
-      <rect x="50" y="78" width="100" height="170" fill="#232b36"/>
-      <rect x="55" y="83" width="90" height="160" fill="none" stroke="#d0ad6d" stroke-width=".5" stroke-opacity=".7"/>
-      ${tick(59, 87, 1, 1)}${tick(141, 87, -1, 1)}${tick(59, 239, 1, -1)}${tick(141, 239, -1, -1)}
-      <circle cx="100" cy="112" r="19" fill="#f1d17d" opacity=".16"/>
-      <image href="assets/img/moon-sm.webp" x="84" y="96" width="32" height="32"/>
-      <circle cx="74" cy="100" r=".9" fill="#e5c38c"/><circle cx="127" cy="96" r=".8" fill="#e5c38c"/><circle cx="131" cy="128" r=".7" fill="#e5c38c"/>
-      <g font-family="Shippori Mincho B1, serif" font-weight="600" fill="#e5c38c" text-anchor="middle" font-size="25">
-        <text x="100" y="159">満</text><text x="100" y="188">月</text><text x="100" y="217">米</text>
-      </g>
-      <g font-family="Zen Maru Gothic, sans-serif" font-size="7" fill="#b8af9e" letter-spacing="1.2">
-        <text x="68" y="140" style="writing-mode:vertical-rl">北海道士別市産</text>
-        <text x="132" y="140" style="writing-mode:vertical-rl">ななつぼし</text>
-      </g>
-      <path d="M66 226 H134" stroke="#d0ad6d" stroke-width=".6"/>
-      <text x="100" y="239" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="10.5" letter-spacing="2" fill="#e5c38c">${weight}</text>`;
-    const bag = (weight, extra = '') => `
-      <path d="${body}" fill="url(#${u}k)"/>
-      <path d="${body}" fill="url(#${u}sd)"/>
-      <path d="M40 64 C44 130 40 210 33 284" stroke="#fff" stroke-opacity=".10" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M163 66 C165 140 168 214 172 284" stroke="#4a3216" stroke-opacity=".10" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M28 272 C70 280 130 281 174 272" stroke="#4a3216" stroke-opacity=".12" stroke-width="3" fill="none"/>
-      <rect x="19" y="48" width="162" height="10" fill="url(#${u}cs)"/>
-      <path d="${zig}" fill="url(#${u}tp)"/>
-      <path d="M20 33 H180" stroke="#7d6040" stroke-width="1" stroke-dasharray="3 2.4" opacity=".75"/>
-      ${label(weight)}
-      ${extra}`;
-    const seal = `
-      <g transform="translate(160 84)">
-        <circle r="27" fill="#f2eadc"/>
-        <circle r="27" fill="none" stroke="#b18740" stroke-width="1.2"/>
-        <circle r="22.5" fill="none" stroke="#b18740" stroke-width=".6" stroke-dasharray="2 1.6"/>
-        <text y="3" text-anchor="middle" font-family="Shippori Mincho B1, serif" font-weight="700" font-size="15" fill="#262b35" letter-spacing="1">新米</text>
-        <text y="14" text-anchor="middle" font-family="Zen Maru Gothic, sans-serif" font-size="6.2" fill="#6a5121" letter-spacing=".5">令和8年産</text>
-      </g>`;
-    /* 定期便: a month of moons (new → full) arcing over the bag */
-    const phases = (() => {
-      const pts = [[98, 30], [129, 19], [160, 15], [191, 19], [222, 30]];
-      const r = 8.5;
-      return pts.map(([cx, cy], i) => {
-        const top = `${cx} ${cy - r}`, bot = `${cx} ${cy + r}`;
-        const lit = [
-          '',
-          `M${top} A${r} ${r} 0 0 1 ${bot} A${r * 0.55} ${r} 0 0 0 ${top}Z`,
-          `M${top} A${r} ${r} 0 0 1 ${bot}Z`,
-          `M${top} A${r} ${r} 0 0 1 ${bot} A${r * 0.55} ${r} 0 0 1 ${top}Z`,
-          '',
-        ][i];
-        return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${i === 4 ? '#f1d17d' : '#1b222b'}" stroke="#d0ad6d" stroke-width="1"/>${lit ? `<path d="${lit}" fill="#e5c38c"/>` : ''}`;
-      }).join('') + '<path d="M90 42 Q160 8 230 42" fill="none" stroke="#d0ad6d" stroke-width=".6" stroke-dasharray="2 3" opacity=".7"/>';
-    })();
-    const defs = `
-      <defs>
-        <linearGradient id="${u}k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2cda7"/><stop offset=".55" stop-color="#d5bb8f"/><stop offset="1" stop-color="#c7aa7b"/></linearGradient>
-        <linearGradient id="${u}sd" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3c2610" stop-opacity=".34"/><stop offset=".14" stop-color="#3c2610" stop-opacity="0"/><stop offset=".86" stop-color="#3c2610" stop-opacity="0"/><stop offset="1" stop-color="#3c2610" stop-opacity=".4"/></linearGradient>
-        <linearGradient id="${u}tp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9ad82"/><stop offset="1" stop-color="#ad8f62"/></linearGradient>
-        <linearGradient id="${u}cs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3c2610" stop-opacity=".3"/><stop offset="1" stop-color="#3c2610" stop-opacity="0"/></linearGradient>
-        <filter id="${u}bl" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="6"/></filter>
-      </defs>`;
-    const shadow = (cx, rx) => `<ellipse cx="${cx}" cy="324" rx="${rx}" ry="8" fill="#05080c" opacity=".55" filter="url(#${u}bl)"/>`;
-
-    let inner;
-    if (art.type === 'double') {
-      inner = `${shadow(170, 132)}
-        <g transform="translate(116 12) scale(.9)">${bag('5kg')}<path d="${body}" fill="#0d121a" opacity=".22"/></g>
-        <g transform="translate(24 26) scale(.95)">${bag('5kg')}</g>`;
-    } else if (art.phases) {
-      inner = `${shadow(160, 98)}${phases}<g transform="translate(66 40) scale(.94)">${bag('5kg')}</g>`;
-    } else {
-      inner = `${shadow(160, 104)}<g transform="translate(60 20)">${bag('5kg', art.seal ? seal : '')}</g>`;
-    }
-    const a11y = title ? `role="img" aria-label="${esc(title)}"` : 'aria-hidden="true"';
-    return `<svg viewBox="0 0 320 340" ${a11y} focusable="false">${defs}${inner}</svg>`;
-  }
-
-  /* ---------- storage-safe cart ---------- */
-  const store = {
-    load() {
-      let raw;
-      try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-      if (!Array.isArray(raw)) return [];
-      const out = [];
-      for (const l of raw) {
-        const p = l && byId(l.pid);
-        if (!p || !p.variants.some((v) => v.id === l.vid)) continue;
-        const gift = p.gift && GIFT_OPTIONS.some((g) => g.id === l.gift) ? l.gift : 'none';
-        const qty = Math.min(MAX_QTY, Math.max(1, Math.floor(Number(l.qty)) || 1));
-        const dup = out.find((x) => x.pid === l.pid && x.vid === l.vid && x.gift === gift);
-        if (dup) dup.qty = Math.min(MAX_QTY, dup.qty + qty);
-        else out.push({ pid: l.pid, vid: l.vid, gift, qty });
-      }
-      return out;
-    },
-    save(lines) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch { /* storage unavailable */ } },
-  };
-  let cart = store.load();
+  /* ---------- cart ---------- */
+  let cart = S.loadCart();
   const lineKey = (l) => `${l.pid}|${l.vid}|${l.gift || 'none'}`;
   const lineInfo = (l) => {
-    const p = byId(l.pid);
+    const p = S.product(l.pid);
     const v = p.variants.find((x) => x.id === l.vid) || p.variants[0];
-    const g = GIFT_OPTIONS.find((x) => x.id === (l.gift || 'none')) || GIFT_OPTIONS[0];
-    const unit = v.price + g.fee;
+    const g = giftOf(l.gift);
+    const unit = v.price + giftFee(g);
     return { p, v, g, unit, total: unit * l.qty };
   };
   const totals = () => {
     const sub = cart.reduce((s, l) => s + lineInfo(l).total, 0);
     const count = cart.reduce((s, l) => s + l.qty, 0);
-    const ship = sub === 0 || sub >= FREE_SHIP_OVER ? 0 : SHIP_FEE;
+    const ship = sub === 0 || alwaysFree() || sub >= settings().freeShipOver ? 0 : settings().shipFee;
     return { sub, count, ship, total: sub + ship };
   };
-  const hasPreorder = () => cart.some((l) => byId(l.pid).preorder);
-  const mixedPreorder = () => hasPreorder() && cart.some((l) => !byId(l.pid).preorder);
+  const preorderLines = () => cart.filter((l) => S.product(l.pid).options.preorder);
+  const hasPreorder = () => preorderLines().length > 0;
+  const mixedPreorder = () => hasPreorder() && cart.some((l) => !S.product(l.pid).options.preorder);
+  const preorderShip = () => { const l = preorderLines()[0]; return l ? S.product(l.pid).ship : ''; };
   const variantName = (p, v) => (p.variants.length > 1 ? `${p.name} ${v.label}` : p.name);
 
   function addToCart(pid, vid, qty = 1, gift = 'none') {
+    const p = S.product(pid);
+    const v = p && p.variants.find((x) => x.id === vid);
+    if (!S.isVisible(p) || !v || S.variantSoldOut(p, v)) { toast('申し訳ありません。この商品は売り切れです。'); return; }
+    const cap = S.maxFor(p, v);
     const key = lineKey({ pid, vid, gift });
     const found = cart.find((l) => lineKey(l) === key);
     const before = found ? found.qty : 0;
-    if (found) found.qty = Math.min(MAX_QTY, found.qty + qty);
-    else cart.push({ pid, vid, gift, qty: Math.min(MAX_QTY, qty) });
-    const after = cart.find((l) => lineKey(l) === key).qty;
+    if (found) found.qty = Math.min(cap, found.qty + qty);
+    else cart.push({ pid, vid, gift, qty: Math.min(cap, qty) });
+    const added = cart.find((l) => lineKey(l) === key).qty - before;
     commit();
-    const { p, v } = lineInfo({ pid, vid, gift, qty });
-    const added = after - before;
-    if (added === 0) {
-      toast(`1回のご注文で、同じ商品は${MAX_QTY}点までです。`);
-      return;
-    }
-    toast(added < qty
-      ? `「${variantName(p, v)}」を${added}点追加しました（同じ商品は${MAX_QTY}点までです）`
-      : `「${variantName(p, v)}」をカートに追加しました`, { action: 'カートを見る', onAction: openDrawer });
+    const capMsg = v.stock !== null && cap < settings().maxQty ? `在庫は残り${v.stock}点です` : `同じ商品は${cap}点までです`;
+    if (added === 0) { toast(`1回のご注文で、${capMsg}。`); return; }
+    toast(added < qty ? `「${variantName(p, v)}」を${added}点追加しました（${capMsg}）` : `「${variantName(p, v)}」をカートに追加しました`, { action: 'カートを見る', onAction: openDrawer });
     const c = $('#cartCount');
     c.classList.remove('is-bump'); void c.offsetWidth; c.classList.add('is-bump');
   }
   function setQty(key, qty) {
     const l = cart.find((x) => lineKey(x) === key);
     if (!l) return;
-    l.qty = Math.max(1, Math.min(MAX_QTY, qty));
+    const { p, v } = lineInfo(l);
+    l.qty = Math.max(1, Math.min(S.maxFor(p, v), qty));
     commit();
   }
   function removeLine(key) {
     const l = cart.find((x) => lineKey(x) === key);
     cart = cart.filter((x) => lineKey(x) !== key);
     commit();
-    if (l) announce(`「${variantName(byId(l.pid), lineInfo(l).v)}」をカートから削除しました`);
+    if (l) announce(`「${variantName(S.product(l.pid), lineInfo(l).v)}」をカートから削除しました`);
   }
   function refreshCartViews() {
     renderCount();
     if (!$('#cartDrawer').hidden) renderDrawer();
+    if (!IS_SHOP) return;
     if (currentRoute === 'cart' || currentRoute === 'checkout-confirm') renderRoute();
     else if (currentRoute === 'checkout') { const f = $('#checkoutForm'); if (f) collect(f); renderRoute(); }
   }
@@ -296,12 +104,12 @@
     const a = document.activeElement;
     const inDrawer = !!(a && a.closest && a.closest('#cartDrawer'));
     const sel = a && a.dataset && a.dataset.qty ? `[data-qty="${CSS.escape(a.dataset.qty)}"][data-delta="${a.dataset.delta}"]` : null;
-    store.save(cart);
+    S.saveCart(cart);
     refreshCartViews();
     // put focus back only if the focused control was re-rendered away
     if (a && a !== document.body && !a.isConnected) {
       const scope = inDrawer ? $('#cartDrawer') : view();
-      const next = (sel && $(sel, scope)) || (inDrawer ? $('#cartClose') : $('[data-page-focus]', view()));
+      const next = (sel && scope && $(sel, scope)) || (inDrawer ? $('#cartClose') : view() && $('[data-page-focus]', view()));
       if (next) next.focus();
     }
   }
@@ -318,32 +126,6 @@
     const sr = $('#srStatus');
     sr.textContent = '';
     requestAnimationFrame(() => { sr.textContent = msg; });
-  }
-
-  /* ---------- product card ---------- */
-  function cardHTML(p) {
-    const multi = p.variants.length > 1;
-    return `
-      <article class="p-card">
-        <span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>
-        <a class="p-card__visual" href="#item-${p.id}" tabindex="-1" aria-hidden="true">${bagSVG(p.art)}</a>
-        <div class="p-card__body">
-          <p class="p-card__meta">${esc(p.meta)}</p>
-          <h3 class="p-card__name"><a href="#item-${p.id}">${esc(p.name)}</a></h3>
-          <p class="p-card__desc">${esc(p.card)}</p>
-          <p class="p-card__when">${esc(p.when)}</p>
-          <div class="p-card__foot">
-            ${priceHTML(minPrice(p), { from: multi, per: p.subscription ? '1回' : '' })}
-            ${multi
-              ? `<a class="add-btn" href="#item-${p.id}" aria-label="${esc(p.name)}の内容を選んで購入">選んで購入</a>`
-              : `<button class="add-btn" type="button" data-add="${p.id}" data-variant="${p.variants[0].id}" aria-label="${esc(p.name)}をカートに入れる">${ICON_BAG}カートに入れる</button>`}
-          </div>
-        </div>
-      </article>`;
-  }
-  function renderProductGrid() {
-    const grid = $('#productGrid');
-    if (grid) grid.innerHTML = PRODUCTS.map(cardHTML).join('');
   }
 
   /* ---------- modal helpers ---------- */
@@ -379,22 +161,23 @@
   function lineHTML(l) {
     const { p, v, g, total } = lineInfo(l);
     const key = esc(lineKey(l));
+    const cap = S.maxFor(p, v);
     const opts = [
       p.variants.length > 1 ? v.label : '',
-      g.id !== 'none' ? `${g.label}（+¥${yen(g.fee)}）` : '',
-      p.preorder ? '予約・12月上旬より順次発送' : '',
+      g.id !== 'none' ? `${g.label}（+¥${yen(giftFee(g))}）` : '',
+      p.options.preorder ? `予約・${p.when || p.ship}` : '',
     ].filter(Boolean).join(' ／ ');
     return `
       <div class="line">
-        <a class="line__img" href="#item-${p.id}" tabindex="-1" aria-hidden="true">${bagSVG(p.art)}</a>
+        <a class="line__img" href="${esc(itemHref(p.id))}" tabindex="-1" aria-hidden="true">${visualHTML(p)}</a>
         <div class="line__info">
-          <p class="line__name"><a href="#item-${p.id}">${esc(p.name)}</a></p>
+          <p class="line__name"><a href="${esc(itemHref(p.id))}">${esc(p.name)}</a></p>
           ${opts ? `<p class="line__opt">${esc(opts)}</p>` : ''}
           <div class="line__ctrl">
             <div class="qty qty--sm" role="group" aria-label="${esc(p.name)}の数量">
               <button type="button" data-qty="${key}" data-delta="-1" aria-label="1つ減らす" ${l.qty <= 1 ? 'aria-disabled="true"' : ''}>−</button>
               <output>${l.qty}</output>
-              <button type="button" data-qty="${key}" data-delta="1" aria-label="1つ増やす" ${l.qty >= MAX_QTY ? 'aria-disabled="true"' : ''}>＋</button>
+              <button type="button" data-qty="${key}" data-delta="1" aria-label="1つ増やす" ${l.qty >= cap ? 'aria-disabled="true"' : ''}>＋</button>
             </div>
             <button class="line__remove" type="button" data-remove="${key}" aria-label="${esc(p.name)}をカートから削除">削除</button>
           </div>
@@ -403,9 +186,9 @@
       </div>`;
   }
   function freeShipHTML(sub) {
-    if (sub >= FREE_SHIP_OVER) return `<p class="free-ship">送料無料でお届けします。<span class="free-ship__bar"><i style="width:100%"></i></span></p>`;
-    const rest = FREE_SHIP_OVER - sub;
-    return `<p class="free-ship">送料無料まで、あと <b>¥${yen(rest)}</b> です。<span class="free-ship__bar"><i style="width:${Math.round((sub / FREE_SHIP_OVER) * 100)}%"></i></span></p>`;
+    const over = settings().freeShipOver;
+    if (alwaysFree() || sub >= over) return `<p class="free-ship">送料無料でお届けします。<span class="free-ship__bar"><i style="width:100%"></i></span></p>`;
+    return `<p class="free-ship">送料無料まで、あと <b>¥${yen(over - sub)}</b> です。<span class="free-ship__bar"><i style="width:${Math.round((sub / over) * 100)}%"></i></span></p>`;
   }
   function summaryHTML(t, extra = 0) {
     return `
@@ -417,21 +200,21 @@
       </dl>`;
   }
   const preorderNotice = () => (mixedPreorder()
-    ? '<p class="notice"><b>お届けについて</b>予約商品（令和8年産 新米）とご一緒のご注文は、12月上旬にまとめてお届けします。先にお届けしたい商品は、別々にご注文ください。</p>'
+    ? `<p class="notice"><b>お届けについて</b>予約商品とご一緒のご注文は、予約商品の発送（${esc(preorderShip())}）にあわせてまとめてお届けします。先にお届けしたい商品は、別々にご注文ください。</p>`
     : '');
   const emptyHTML = (msg = 'カートに商品は入っていません。') => `
     <div class="empty">
       <span class="empty__moon" aria-hidden="true"></span>
       <p>${msg}</p>
-      <a class="btn btn--line btn--sm" href="#products">商品一覧を見る</a>
+      <a class="btn btn--line btn--sm" href="${shopHref('')}">商品一覧を見る</a>
     </div>`;
   function renderDrawer() {
     const t = totals();
     $('#drawerBody').innerHTML = cart.length ? preorderNotice() + cart.map(lineHTML).join('') : emptyHTML();
     $('#drawerFoot').innerHTML = cart.length
       ? `${freeShipHTML(t.sub)}${summaryHTML(t)}
-         <a class="btn btn--gold btn--block" href="#checkout">ご購入手続きへ</a>
-         <p class="drawer__links"><a href="#cart">カートの詳細を見る</a></p>`
+         <a class="btn btn--gold btn--block" href="${shopHref('checkout')}">ご購入手続きへ</a>
+         <p class="drawer__links"><a href="${shopHref('cart')}">カートの詳細を見る</a></p>`
       : '';
   }
 
@@ -446,85 +229,152 @@
     armToast();
   }
   const armToast = () => { clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 4200); };
-  // keep the toast while the pointer or keyboard focus is on it
   $('#toast').addEventListener('mouseenter', () => clearTimeout(toastTimer));
   $('#toast').addEventListener('focusin', () => clearTimeout(toastTimer));
   $('#toast').addEventListener('mouseleave', armToast);
   $('#toast').addEventListener('focusout', armToast);
 
-  /* =========================================================
-     Views
-     ========================================================= */
-  const view = () => $('#view');
-  const pageHead = (title, crumbs, extra = '') => `
-    <div class="page-head${title ? '' : ' page-head--compact'}">
+  const pageHead = (title, crumbs, extra = '', cls = '') => `
+    <div class="page-head${title ? '' : ' page-head--compact'}${cls ? ' ' + cls : ''}">
       <div class="container">
-        <nav aria-label="現在地"><ol class="crumbs">${crumbs.map(([t, h]) => `<li>${h ? `<a href="${h}">${esc(t)}</a>` : `<span aria-current="page">${esc(t)}</span>`}</li>`).join('')}</ol></nav>
+        <nav aria-label="現在地"><ol class="crumbs">${crumbs.map(([t, h]) => `<li>${h ? `<a href="${esc(h)}">${esc(t)}</a>` : `<span aria-current="page">${esc(t)}</span>`}</li>`).join('')}</ol></nav>
         ${title ? `<h1 class="page-title" tabindex="-1" data-page-focus>${esc(title)}</h1>` : ''}
         ${extra}
       </div>
     </div>`;
 
+  /* =========================================================
+     HOME (index.html)
+     ========================================================= */
+  function renderHome() {
+    const grid = $('#productGrid');
+    if (grid) {
+      const visible = S.visibleProducts();
+      const featured = visible.filter((p) => p.featured);
+      const list = (featured.length ? featured : visible).slice(0, 4);
+      grid.innerHTML = list.map((p) => cardHTML(p, { href: itemHref })).join('');
+      grid.dataset.count = String(list.length);
+    }
+    const news = $('#heroNews');
+    if (news) {
+      const n = settings().news;
+      const target = n.link && S.product(n.link);
+      news.hidden = !n.show || !n.text;
+      news.href = S.isVisible(target) ? itemHref(target.id) : shopHref('');
+      $('#heroNewsText').textContent = n.text;
+    }
+    $$('[data-ship-text]').forEach((el) => { el.textContent = shipText(); });
+  }
+
+  /* =========================================================
+     SHOP (shop.html)
+     ========================================================= */
+  let listSort = 'recommend';
+  function renderList(catId) {
+    const all = S.visibleProducts();
+    const cats = S.catalog().categories.filter((c) => all.some((p) => p.category === c.id));
+    const cat = catId ? cats.find((c) => c.id === catId) : null;
+    let items = cat ? all.filter((p) => p.category === cat.id) : all.slice();
+    const order = new Map(all.map((p, i) => [p.id, i]));
+    items.sort((a, b) => {
+      const so = Number(S.productSoldOut(a)) - Number(S.productSoldOut(b));
+      if (so) return so;
+      if (listSort === 'price-asc') return S.minPrice(a) - S.minPrice(b);
+      if (listSort === 'price-desc') return S.minPrice(b) - S.minPrice(a);
+      return order.get(a.id) - order.get(b.id);
+    });
+    const s = settings();
+    const crumbs = cat ? [['トップ', 'index.html'], ['オンラインショップ', '#'], [cat.name]] : [['トップ', 'index.html'], ['オンラインショップ']];
+    view().innerHTML = `
+      ${pageHead(cat ? cat.name : 'オンラインショップ', crumbs, `<p class="page-lead">北海道士別市上士別町の満月農園から、ご自宅へ直接お送りします。</p><p class="photo-note">写真はイメージです</p>`, 'page-head--photo')}
+      <div class="page-body">
+        <div class="container">
+          <div class="shop-bar">
+            <nav class="cat-tabs" aria-label="カテゴリ">
+              <a href="#" ${!cat ? 'aria-current="page"' : ''}>すべて<span>${all.length}</span></a>
+              ${cats.map((c) => `<a href="#category-${esc(c.id)}" ${cat && cat.id === c.id ? 'aria-current="page"' : ''}>${esc(c.name)}<span>${all.filter((p) => p.category === c.id).length}</span></a>`).join('')}
+            </nav>
+            <label class="sort">
+              <span>並び順</span>
+              <select class="select select--sm" id="sortSel">
+                <option value="recommend" ${listSort === 'recommend' ? 'selected' : ''}>おすすめ順</option>
+                <option value="price-asc" ${listSort === 'price-asc' ? 'selected' : ''}>価格の安い順</option>
+                <option value="price-desc" ${listSort === 'price-desc' ? 'selected' : ''}>価格の高い順</option>
+              </select>
+            </label>
+          </div>
+          ${items.length ? `<div class="product-grid">${items.map((p) => cardHTML(p, { href: itemHref })).join('')}</div>`
+            : '<div class="empty"><span class="empty__moon" aria-hidden="true"></span><p>このカテゴリの商品は、ただいま準備中です。</p></div>'}
+          <aside class="shop-info" aria-label="お買いものについて">
+            <div><h2>送料</h2><p>${shipText(s)}です（<span class="nw">沖縄・離島</span>は別途お見積もり）。</p></div>
+            <div><h2>発送</h2><p>ご注文から3〜5営業日で発送します。予約商品は、各商品ページに記載の時期にお届けします。</p></div>
+            <div><h2>お支払い</h2><p>${PAYMENTS.map((p) => p.label).join('、')}。<a class="link" href="#guide">ご利用ガイド</a></p></div>
+          </aside>
+        </div>
+      </div>`;
+    $('#sortSel').addEventListener('change', (e) => { listSort = e.target.value; renderList(catId); $('#sortSel').focus(); });
+  }
+
   /* ---------- product ---------- */
   let buyObserver = null;
   function renderProduct(p) {
-    const gallery = [
-      { kind: 'svg', label: '商品イメージ（米袋のイラスト）' },
-      { kind: 'img', src: 'assets/img/bowl.webp', alt: '茶碗に盛った炊きたての満月米', contain: true, label: '炊きたてのごはん' },
-      { kind: 'img', src: 'assets/img/rice-hand-sm.webp', alt: '手のひらにすくった満月米の精米', label: '精米のようす' },
-    ];
-    const media = (g) => (g.kind === 'svg' ? bagSVG(p.art, { title: `${p.name}の米袋のイラスト` }) : `<img src="${g.src}" alt="${esc(g.alt)}"${g.contain ? ' class="is-contain"' : ''}>`);
-    const v0 = p.variants[0];
-    const weights = p.variants.map((v) => v.weight).filter((x, i, a) => a.indexOf(x) === i).join('／');
-    const specRows = BASE_SPEC.map(([k, val]) => [k, val.replace('{year}', p.year).replace('{weight}', weights)]);
-    if (p.preorder) specRows.push(['発送時期', p.ship]);
-    if (p.subscription) {
-      specRows.push(['お届け周期', '毎月／隔月からお選びいただけます']);
-      specRows.push(['休止・解約・お約束回数', '（準備中）']);
-    }
-    const others = PRODUCTS.filter((x) => x.id !== p.id);
-    const award = `米-1グランプリ in らんこし 2025 <span class="nw">${p.award ? '金賞受賞' : '金賞受賞農園'}</span>`;
+    const gallery = [{ kind: 'main', label: '商品イメージ' }, ...p.gallery.map((g, i) => ({ kind: 'img', g, label: g.alt || `商品写真${i + 1}` }))];
+    const media = (item) => (item.kind === 'main' ? visualHTML(p, { title: `${p.name}の商品イメージ`, alt: p.name }) : imageHTML(item.g));
+    const variants = p.variants;
+    const firstAvail = variants.find((v) => !S.variantSoldOut(p, v)) || variants[0];
+    const soldOut = S.productSoldOut(p);
+    const s = settings();
+    const vis = S.visibleProducts().filter((x) => x.id !== p.id);
+    const others = [...vis.filter((x) => x.category === p.category), ...vis.filter((x) => x.category !== p.category)].slice(0, 3);
+    const award = p.options.award
+      ? '米-1グランプリ in らんこし 2025 <span class="nw">金賞受賞</span>'
+      : p.options.traits ? '米-1グランプリ in らんこし 2025 <span class="nw">金賞受賞農園</span>' : '';
+    const per = p.options.subscription ? '1回' : '';
+    const cat = S.category(p.category);
+    const note = stockNote(p);
 
     view().innerHTML = `
-      ${pageHead(null, [['トップ', '#top'], ['商品一覧', '#products'], [p.name]])}
+      ${pageHead(null, [['トップ', 'index.html'], ['オンラインショップ', '#'], ...(cat ? [[cat.name, `#category-${cat.id}`]] : []), [p.name]])}
       <div class="page-body">
         <div class="container">
           <div class="pd">
             <div class="pd__gallery">
-              ${p.award ? '<img class="pd__medal" src="assets/img/medal.webp" alt="" width="400" height="400">' : ''}
+              ${p.options.award ? `<img class="pd__medal" src="${window.MangetsuUI.asset('assets/img/medal.webp')}" alt="" width="400" height="400">` : ''}
               <div class="pd__main" id="pdMain">${media(gallery[0])}</div>
+              ${gallery.length > 1 ? `
               <div class="pd__thumbs" role="group" aria-label="商品画像を切り替える">
-                ${gallery.map((g, i) => `<button class="pd__thumb" type="button" data-thumb="${i}" aria-pressed="${i === 0}" aria-label="${esc(g.label)}を表示">${g.kind === 'svg' ? bagSVG(p.art) : `<img src="${g.src}" alt=""${g.contain ? ' class="is-contain"' : ''}>`}</button>`).join('')}
-              </div>
+                ${gallery.map((g, i) => `<button class="pd__thumb" type="button" data-thumb="${i}" aria-pressed="${i === 0}" aria-label="${esc(g.label)}を表示">${g.kind === 'main' ? visualHTML(p) : imageHTML(g.g, '')}</button>`).join('')}
+              </div>` : ''}
+              <p class="pd__note">画像はイメージです</p>
             </div>
 
             <form class="pd__info" id="buyForm" novalidate>
               <div class="pd__head">
-                <p class="pd__award">${award}</p>
+                ${award ? `<p class="pd__award">${award}</p>` : ''}
                 <div class="pd__badges">
-                  <span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>
+                  ${soldOut ? '<span class="badge badge--soldout">売り切れ</span>' : p.badge.text ? `<span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>` : ''}
                   <span class="p-card__meta">${esc(p.meta)}</span>
                 </div>
                 <h1 class="pd__name" tabindex="-1" data-page-focus>${esc(p.name)}</h1>
               </div>
               <p class="pd__lead">${jp(p.lead)}</p>
-              <div class="pd__price" id="pdPrice">${priceHTML(v0.price, { per: p.subscription ? '1回' : '' })}</div>
-              <p class="pd__ship">${p.preorder ? '<b>予約商品</b>　' : ''}${esc(p.ship)}<br>送料${yen(SHIP_FEE)}円（税込${yen(FREE_SHIP_OVER)}円以上のご注文で無料。<span class="nw">沖縄・離島</span>は別途お見積もり）</p>
+              <div class="pd__price" id="pdPrice">${priceHTML(firstAvail.price, { per })}</div>
+              <p class="pd__ship">${p.options.preorder ? '<b>予約商品</b>　' : ''}${esc(p.ship)}${note ? `　<b>${esc(note)}</b>` : ''}<br>${shipText(s)}（<span class="nw">沖縄・離島</span>は別途お見積もり）</p>
 
-              ${p.variants.length > 1 ? `
+              ${variants.length > 1 ? `
               <fieldset class="opt">
-                <legend>${p.subscription ? 'お届け周期・内容量' : '内容量'}</legend>
+                <legend>${p.options.subscription ? 'お届け周期・内容量' : '種類・内容量'}</legend>
                 <div class="chips">
-                  ${p.variants.map((v, i) => `
-                    <label class="chip"><input type="radio" name="variant" value="${v.id}" ${i === 0 ? 'checked' : ''}><span>${esc(v.label)}<small>¥${yen(v.price)}${p.subscription ? '／1回' : ''}</small></span></label>`).join('')}
+                  ${variants.map((v) => { const out = S.variantSoldOut(p, v); return `
+                    <label class="chip${out ? ' is-disabled' : ''}"><input type="radio" name="variant" value="${esc(v.id)}" ${v === firstAvail ? 'checked' : ''} ${out ? 'disabled' : ''}><span>${esc(v.label)}<small>${out ? '売り切れ' : `¥${yen(v.price)}${per ? '／1回' : ''}`}</small></span></label>`; }).join('')}
                 </div>
-              </fieldset>` : `<input type="hidden" name="variant" value="${v0.id}">`}
+              </fieldset>` : `<input type="hidden" name="variant" value="${esc(firstAvail.id)}">`}
 
-              ${p.gift ? `
+              ${p.options.gift && !soldOut ? `
               <div class="field">
                 <label class="field__label" for="giftSel">ギフト包装・のし</label>
                 <select class="select" id="giftSel" name="gift">
-                  ${GIFT_OPTIONS.map((g) => `<option value="${g.id}">${esc(g.label)}${g.fee ? `（+¥${yen(g.fee)}）` : ''}</option>`).join('')}
+                  ${GIFT_OPTIONS.map((g) => `<option value="${g.id}">${esc(g.label)}${g.paid ? `（+¥${yen(s.giftFee)}）` : ''}</option>`).join('')}
                 </select>
               </div>` : ''}
 
@@ -536,30 +386,33 @@
                     <output id="pdQty">1</output>
                     <button type="button" data-step="1" aria-label="1つ増やす">＋</button>
                   </div>
-                  <button class="btn btn--gold" type="submit" id="buyBtn">${ICON_BAG}${p.preorder ? '予約してカートに入れる' : 'カートに入れる'}</button>
+                  <button class="btn btn--gold" type="submit" id="buyBtn" ${soldOut ? 'disabled' : ''}>${soldOut ? '売り切れ' : `${ICON_BAG}${p.options.preorder ? '予約してカートに入れる' : 'カートに入れる'}`}</button>
                 </div>
               </div>
               <p class="pd__sub">
-                <a href="#furusato"><span>ふるさと納税で選ぶ</span></a>
+                ${p.options.traits ? '<a href="index.html#furusato"><span>ふるさと納税で選ぶ</span></a>' : ''}
                 <a href="#guide"><span>送料・お届けについて</span></a>
               </p>
             </form>
           </div>
 
+          ${soldOut ? '' : `
           <div class="buybar" id="buyBar" hidden>
             <div id="buyBarPrice"></div>
-            <button class="btn btn--gold" type="submit" form="buyForm">${ICON_BAG}${p.preorder ? '予約してカートへ' : 'カートに入れる'}</button>
-          </div>
+            <button class="btn btn--gold" type="submit" form="buyForm">${ICON_BAG}${p.options.preorder ? '予約してカートへ' : 'カートに入れる'}</button>
+          </div>`}
 
-          <section class="spec" aria-labelledby="specTitle">
+          <section class="spec${p.options.traits ? '' : ' spec--single'}" aria-labelledby="specTitle">
             <div>
               <h2 id="specTitle">商品情報</h2>
+              ${p.specs.length ? `
               <div class="table-wrap">
                 <table class="spec-table"><tbody>
-                  ${specRows.map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}
+                  ${p.specs.map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}
                 </tbody></table>
-              </div>
+              </div>` : '<p class="pending">商品情報は準備中です。</p>'}
             </div>
+            ${p.options.traits ? `
             <div>
               <h2>ななつぼしの特徴</h2>
               <ul class="spec__points">
@@ -568,13 +421,14 @@
                 <li><img src="assets/svg/icon-sparkle.svg" alt=""><p><b>穏やかな香り</b><span>主張が少なく、おかずの香りを邪魔しません。</span></p></li>
                 <li><img src="assets/svg/icon-bowl.svg" alt=""><p><b>粒立ちが良い</b><span>コシがあり、しっかりとした食感です。</span></p></li>
               </ul>
-            </div>
+            </div>` : ''}
           </section>
 
+          ${others.length ? `
           <section class="related" aria-labelledby="relTitle">
             <h2 id="relTitle">ほかの商品</h2>
-            <div class="product-grid">${others.map(cardHTML).join('')}</div>
-          </section>
+            <div class="product-grid">${others.map((x) => cardHTML(x, { href: itemHref })).join('')}</div>
+          </section>` : ''}
         </div>
       </div>`;
 
@@ -584,27 +438,28 @@
       $('#pdMain').innerHTML = media(gallery[+b.dataset.thumb]);
       thumbs.forEach((t) => t.setAttribute('aria-pressed', String(t === b)));
     }));
+    if (soldOut) { $$('[data-step]', view()).forEach((b) => b.setAttribute('aria-disabled', 'true')); return; }
 
     // qty + price
     const form = $('#buyForm');
     let qty = 1;
+    const current = () => { const vid = new FormData(form).get('variant'); return variants.find((x) => x.id === vid) || firstAvail; };
     const update = () => {
-      const vid = new FormData(form).get('variant');
-      const v = p.variants.find((x) => x.id === vid) || v0;
-      const gid = form.gift ? form.gift.value : 'none';
-      const g = GIFT_OPTIONS.find((x) => x.id === gid) || GIFT_OPTIONS[0];
-      const unit = v.price + g.fee;
-      const per = p.subscription ? '1回' : '';
-      const notes = [qty > 1 ? `¥${yen(unit)} × ${qty}` : '', g.fee ? `ギフト包装 ¥${yen(g.fee)} を含む` : ''].filter(Boolean).join('・');
+      const v = current();
+      const cap = S.maxFor(p, v);
+      qty = Math.max(1, Math.min(qty, cap));
+      const g = giftOf(form.gift ? form.gift.value : 'none');
+      const unit = v.price + giftFee(g);
+      const notes = [qty > 1 ? `¥${yen(unit)} × ${qty}` : '', giftFee(g) ? `ギフト包装 ¥${yen(giftFee(g))} を含む` : ''].filter(Boolean).join('・');
       $('#pdPrice').innerHTML = priceHTML(unit * qty, { per }) + (notes ? `<span class="price__tax">（${notes}）</span>` : '');
       $('#buyBarPrice').innerHTML = priceHTML(unit * qty, { per });
       $('#pdQty').textContent = qty;
       $('[data-step="-1"]', form).setAttribute('aria-disabled', String(qty <= 1));
-      $('[data-step="1"]', form).setAttribute('aria-disabled', String(qty >= MAX_QTY));
+      $('[data-step="1"]', form).setAttribute('aria-disabled', String(qty >= cap));
     };
     $$('[data-step]', form).forEach((b) => b.addEventListener('click', () => {
       if (b.getAttribute('aria-disabled') === 'true') return;
-      qty = Math.max(1, Math.min(MAX_QTY, qty + +b.dataset.step));
+      qty = Math.max(1, Math.min(S.maxFor(p, current()), qty + +b.dataset.step));
       update();
       announce(`数量 ${qty}`);
     }));
@@ -613,6 +468,7 @@
       e.preventDefault();
       const fd = new FormData(form);
       addToCart(p.id, fd.get('variant'), qty, fd.get('gift') || 'none');
+      update();
     });
     update();
 
@@ -628,13 +484,13 @@
   function renderCart() {
     const t = totals();
     view().innerHTML = `
-      ${pageHead('カート', [['トップ', '#top'], ['カート']], stepsBar(0))}
+      ${pageHead('カート', [['トップ', 'index.html'], ['オンラインショップ', '#'], ['カート']], stepsBar(0))}
       <div class="page-body">
         <div class="container">
           ${cart.length ? `
           <div class="cart-page">
             <div>${preorderNotice()}${cart.map(lineHTML).join('')}
-              <p class="cart-page__more"><a class="link" href="#products">買いものを続ける</a></p>
+              <p class="cart-page__more"><a class="link" href="#">買いものを続ける</a></p>
             </div>
             <aside class="panel" aria-label="ご注文金額">
               <p class="panel__title">ご注文金額</p>
@@ -649,8 +505,8 @@
 
   function stepsBar(active) {
     const steps = ['カート', 'お客様情報', 'ご確認', '完了'];
-    return `<ol class="steps-bar" aria-label="ご購入の手順">${steps.map((s, i) => `
-      <li class="${i < active ? 'is-done' : ''}" ${i === active ? 'aria-current="step"' : ''}>${phaseSVG(i + 1)}<span>${s}</span></li>`).join('')}</ol>`;
+    return `<ol class="steps-bar" aria-label="ご購入の手順">${steps.map((st, i) => `
+      <li class="${i < active ? 'is-done' : ''}" ${i === active ? 'aria-current="step"' : ''}>${phaseSVG(i + 1)}<span>${st}</span></li>`).join('')}</ol>`;
   }
 
   /* ---------- checkout ---------- */
@@ -658,9 +514,10 @@
   const PAYMENTS = [
     { id: 'card', label: 'クレジットカード', note: '決済画面へ移動してお支払いいただきます', timing: 'ご注文時に決済画面でお支払い' },
     { id: 'atobarai', label: 'コンビニ後払い', note: '商品到着後、コンビニでお支払いいただけます', timing: '商品到着後にコンビニでお支払い' },
-    { id: 'cod', label: '代金引換', note: `代引き手数料 ${yen(COD_FEE)}円`, timing: '商品お受け取り時にお支払い' },
+    { id: 'cod', label: '代金引換', note: '代引き手数料がかかります', timing: '商品お受け取り時にお支払い' },
     { id: 'bank', label: '銀行振込', note: 'ご入金を確認してから発送します', timing: 'ご注文後にお振込み（ご入金確認後に発送）' },
   ];
+  const payNote = (pm) => (pm.id === 'cod' ? `代引き手数料 ${yen(settings().codFee)}円` : pm.note);
   const TIMES = ['指定なし', '午前中', '14〜16時', '16〜18時', '18〜20時', '19〜21時'];
   const WEEK = '日月火水木金土';
   const dateOptions = () => {
@@ -704,14 +561,14 @@
       <p class="field__error" id="${id}-err" hidden></p>
     </div>`;
 
-  const codFee = () => (draft.pay === 'cod' ? COD_FEE : 0);
+  const codFee = () => (draft.pay === 'cod' ? settings().codFee : 0);
   function orderPanel() {
     const t = totals();
     return `
       <aside class="panel" aria-label="ご注文内容">
         <p class="panel__title">ご注文内容</p>
         <div>${cart.map((l) => { const { p, v, g, total } = lineInfo(l); return `
-          <div class="mini-line"><span class="line__img" aria-hidden="true">${bagSVG(p.art)}</span>
+          <div class="mini-line"><span class="line__img" aria-hidden="true">${visualHTML(p)}</span>
           <span class="mini-line__name">${esc(p.name)}<small>${[p.variants.length > 1 ? v.label : '', g.id !== 'none' ? g.label : ''].filter(Boolean).map(esc).join('／')} <span class="nw">× ${l.qty}</span></small></span>
           ${priceHTML(total, { tax: false })}</div>`; }).join('')}
         </div>
@@ -723,18 +580,18 @@
 
   function renderCheckout() {
     if (!cart.length) {
-      view().innerHTML = `${pageHead('ご購入手続き', [['トップ', '#top'], ['ご購入手続き']])}<div class="page-body"><div class="container">${emptyHTML()}</div></div>`;
+      view().innerHTML = `${pageHead('ご購入手続き', [['トップ', 'index.html'], ['オンラインショップ', '#'], ['ご購入手続き']])}<div class="page-body"><div class="container">${emptyHTML()}</div></div>`;
       return;
     }
     const dates = dateOptions();
     const pre = hasPreorder();
     view().innerHTML = `
-      ${pageHead('お客様情報の入力', [['トップ', '#top'], ['カート', '#cart'], ['お客様情報']], stepsBar(1))}
+      ${pageHead('お客様情報の入力', [['トップ', 'index.html'], ['カート', '#cart'], ['お客様情報']], stepsBar(1))}
       <div class="page-body">
         <div class="container">
           <div class="checkout">
             <form id="checkoutForm" novalidate>
-              <p class="notice checkout__notice"><b>デモサイトです</b>入力した内容はこの画面の中だけで使われ、どこにも送信されません。実際の注文・決済も行われません。</p>
+              <p class="notice checkout__notice"><b>デモサイトです</b>入力した内容は、このブラウザの中にだけ保存されます（管理画面の注文一覧に表示されます）。どこにも送信されず、実際の注文・決済も行われません。</p>
 
               <section class="form-sec">
                 <h2><span class="num">1</span>ご注文者さま</h2>
@@ -772,7 +629,7 @@
               <section class="form-sec">
                 <h2><span class="num">3</span>お届け日時</h2>
                 <div class="fields">
-                  ${pre ? `<p class="field__hint field--full">予約商品（令和8年産 新米）を含むため、新米の発送にあわせて2026年12月上旬より順次お届けします。日付のご指定はできません。</p>` : `
+                  ${pre ? `<p class="field__hint field--full">予約商品を含むため、予約商品の発送（${esc(preorderShip())}）にあわせてお届けします。日付のご指定はできません。</p>` : `
                   <div class="field">
                     <label class="field__label" for="date">お届け希望日<span class="opt-tag">任意</span></label>
                     <select class="select" id="date" name="date">
@@ -794,7 +651,7 @@
                 <fieldset class="opt pay">
                   <legend class="visually-hidden">お支払い方法</legend>
                   ${PAYMENTS.map((pm, i) => `
-                    <label class="chip"><input type="radio" name="pay" value="${pm.id}" ${(draft.pay ? draft.pay === pm.id : i === 0) ? 'checked' : ''}><span>${pm.label}<small>${pm.note}</small></span></label>`).join('')}
+                    <label class="chip"><input type="radio" name="pay" value="${pm.id}" ${(draft.pay ? draft.pay === pm.id : i === 0) ? 'checked' : ''}><span>${pm.label}<small>${payNote(pm)}</small></span></label>`).join('')}
                 </fieldset>
               </section>
 
@@ -883,7 +740,7 @@
     const pay = PAYMENTS.find((p) => p.id === draft.pay) || PAYMENTS[0];
     const addr = (z, p, a1, a2) => `〒${esc(z)}<br>${esc(p)}${esc(a1)}${a2 ? ' ' + esc(a2) : ''}`;
     const pre = hasPreorder();
-    const teiki = cart.filter((l) => byId(l.pid).subscription);
+    const teiki = cart.filter((l) => S.product(l.pid).options.subscription);
     const rows = [
       ['ご注文者さま', `${esc(draft.name1)} ${esc(draft.name2)}（${esc(draft.kana1)} ${esc(draft.kana2)}）`],
       ['ご住所', addr(draft.zip, draft.pref, draft.addr1, draft.addr2)],
@@ -891,7 +748,7 @@
       ['メールアドレス', esc(draft.email)],
       ['お届け先', draft.giftTo ? `${esc(draft.sname)} さま<br>${addr(draft.szip, draft.spref, draft.saddr1, draft.saddr2)}<br>${esc(draft.stel)}` : 'ご注文者さまと同じ'],
       ...(hasGift() ? [['のしの名入れ', draft.noshiName ? esc(draft.noshiName) : 'なし']] : []),
-      ['お届け時期', pre ? '2026年12月上旬より順次発送（新米の発送にあわせてお届け）' : 'ご注文から3〜5営業日で発送'],
+      ['お届け時期', pre ? `${esc(preorderShip())}（予約商品の発送にあわせてお届け）` : 'ご注文から3〜5営業日で発送'],
       ['お届け日時', `希望日：${pre ? '指定なし' : esc(draft.date || '最短でお届け')}／時間帯：${esc(draft.time || '指定なし')}`],
       ['お支払い方法', esc(pay.label)],
       ['お支払い時期', esc(pay.timing)],
@@ -900,7 +757,7 @@
     ];
     const teikiNote = teiki.map((l) => { const { v, total } = lineInfo(l); return `${esc(v.label)}${l.qty > 1 ? ` × ${l.qty}` : ''}・1回あたり¥${yen(total)}（税込）`; }).join('<br>');
     view().innerHTML = `
-      ${pageHead('ご注文内容の確認', [['トップ', '#top'], ['カート', '#cart'], ['お客様情報', '#checkout'], ['ご確認']], stepsBar(2))}
+      ${pageHead('ご注文内容の確認', [['トップ', 'index.html'], ['カート', '#cart'], ['お客様情報', '#checkout'], ['ご確認']], stepsBar(2))}
       <div class="page-body">
         <div class="container">
           <div class="checkout">
@@ -927,9 +784,25 @@
       btn.textContent = 'ご注文を送信しています…';
       const d = new Date();
       const no = `MG-${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
-      lastOrder = { no, name: `${draft.name1} ${draft.name2}`, preorder: pre, mixed: mixedPreorder() };
+      const t = totals();
+      const saved = S.addOrder({
+        no, at: d.toISOString(), status: 'new',
+        customer: { name: `${draft.name1} ${draft.name2}`, kana: `${draft.kana1} ${draft.kana2}`, tel: draft.tel, email: draft.email, zip: draft.zip, address: `${draft.pref}${draft.addr1}${draft.addr2 ? ' ' + draft.addr2 : ''}` },
+        shipTo: draft.giftTo ? { name: draft.sname, zip: draft.szip, address: `${draft.spref}${draft.saddr1}${draft.saddr2 ? ' ' + draft.saddr2 : ''}`, tel: draft.stel } : null,
+        items: cart.map((l) => { const { p, v, g, unit, total } = lineInfo(l); return { pid: p.id, name: p.name, variant: p.variants.length > 1 ? v.label : '', gift: g.id !== 'none' ? g.label : '', qty: l.qty, unit, total }; }),
+        subtotal: t.sub, ship: t.ship, cod: codFee(), total: t.total + codFee(),
+        pay: pay.label, date: pre ? '' : draft.date || '', time: draft.time || '', noshi: draft.noshiName || '', memo: draft.memo || '',
+        preorder: pre,
+      });
+      if (!saved.ok) {
+        placing = false; btn.disabled = false; btn.textContent = '注文を確定する';
+        toast('ご注文を保存できませんでした（このブラウザの保存容量がいっぱいです）。もう一度お試しください。');
+        return;
+      }
+      S.consumeStock(cart);
+      lastOrder = { no, name: `${draft.name1} ${draft.name2}`, preorder: pre, mixed: mixedPreorder(), ship: preorderShip() };
       cart = []; draft = {};
-      store.save(cart);
+      S.saveCart(cart);
       renderCount();
       location.hash = 'thanks';
     });
@@ -938,7 +811,7 @@
   let lastOrder = null;
   function renderThanks() {
     view().innerHTML = `
-      ${pageHead('ご注文完了', [['トップ', '#top'], ['ご注文完了']], stepsBar(3))}
+      ${pageHead('ご注文完了', [['トップ', 'index.html'], ['ご注文完了']], stepsBar(3))}
       <div class="page-body">
         <div class="container">
           <div class="thanks">
@@ -946,10 +819,13 @@
             ${lastOrder ? `
               <h2>ご注文ありがとうございました</h2>
               <p class="thanks__no">ご注文番号<b>${esc(lastOrder.no)}</b></p>
-              <p>${esc(lastOrder.name)} さま、ご注文を承りました。${lastOrder.preorder ? (lastOrder.mixed ? 'ご注文の商品は、新米の発送にあわせて<span class="nw">2026年12月上旬</span>にまとめてお届けします。' : '新米は<span class="nw">2026年12月上旬</span>より順次お届けします。') : '準備が整いしだい発送いたします。'}</p>
+              <p>${esc(lastOrder.name)} さま、ご注文を承りました。${lastOrder.preorder ? (lastOrder.mixed ? `ご注文の商品は、予約商品の発送（${esc(lastOrder.ship)}）にあわせてまとめてお届けします。` : `予約商品は、${esc(lastOrder.ship)}。`) : '準備が整いしだい発送いたします。'}</p>
               <p class="notice">デモサイトのため、確認メールの送信や実際の発送は行われません。</p>`
             : `<h2>ご注文番号を表示できません</h2><p>ご注文の手続きが済むと、この画面にご注文番号が表示されます。ページを開き直した場合は表示されません。</p>`}
-            <a class="btn btn--line" href="#top">トップへ戻る</a>
+            <div class="thanks__actions">
+              <a class="btn btn--line" href="#">買いものを続ける</a>
+              <a class="btn btn--line" href="index.html">トップへ戻る</a>
+            </div>
           </div>
         </div>
       </div>`;
@@ -958,8 +834,9 @@
   /* ---------- guide ---------- */
   function renderGuide() {
     const pend = '<span class="pending">（準備中）</span>';
+    const s = settings();
     view().innerHTML = `
-      ${pageHead('ご利用ガイド', [['トップ', '#top'], ['ご利用ガイド']])}
+      ${pageHead('ご利用ガイド', [['トップ', 'index.html'], ['オンラインショップ', '#'], ['ご利用ガイド']])}
       <div class="page-body">
         <div class="container">
           <div class="guide">
@@ -984,17 +861,17 @@
               <section class="guide__sec" id="g-pay">
                 <h2>お支払い</h2>
                 <ul class="dots">
-                  ${PAYMENTS.map((p) => `<li>${p.label}　<span class="pending">${p.note}</span></li>`).join('')}
+                  ${PAYMENTS.map((p) => `<li>${p.label}　<span class="pending">${payNote(p)}</span></li>`).join('')}
                 </ul>
               </section>
               <section class="guide__sec" id="g-ship">
                 <h2>送料・お届け</h2>
                 <div class="table-wrap"><table class="spec-table"><tbody>
-                  <tr><th scope="row">送料</th><td>${yen(SHIP_FEE)}円（税込${yen(FREE_SHIP_OVER)}円以上のご注文で無料）<br><span class="pending">沖縄・離島は別途お見積もりとなります</span></td></tr>
+                  <tr><th scope="row">送料</th><td>${shipText(s)}<br><span class="pending">沖縄・離島は別途お見積もりとなります</span></td></tr>
                   <tr><th scope="row">配送方法</th><td>常温便</td></tr>
-                  <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>令和8年産 新米（予約）：2026年12月上旬より順次発送</td></tr>
+                  <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>予約商品：各商品ページに記載の時期に発送</td></tr>
                   <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます（予約商品を含むご注文は日付指定不可）</td></tr>
-                  <tr><th scope="row">ギフト包装・のし</th><td>1点につき${yen(GIFT_FEE)}円（御歳暮・御礼・内祝・無地）</td></tr>
+                  <tr><th scope="row">ギフト包装・のし</th><td>1点につき${yen(s.giftFee)}円（御歳暮・御礼・内祝・無地）</td></tr>
                 </tbody></table></div>
               </section>
               <section class="guide__sec" id="g-return">
@@ -1037,7 +914,7 @@
   }
 
   /* =========================================================
-     Router
+     Router (shop only)
      ========================================================= */
   const PAGES = {
     cart: { title: 'カート', render: renderCart },
@@ -1050,64 +927,34 @@
   };
   const SITE = '満月米 オンラインショップ';
   let currentRoute = null;
-
   const hashId = () => { try { return decodeURIComponent(location.hash.slice(1)); } catch { return ''; } };
-  function showHome() {
-    $('#home').hidden = false;
-    view().hidden = true;
-    view().innerHTML = '';
-    document.title = SITE;
-  }
-  function showPage() {
-    $('#home').hidden = true;
-    view().hidden = false;
-  }
+
   function teardownPage() {
     if (buyObserver) { buyObserver.disconnect(); buyObserver = null; }
     document.body.classList.remove('has-buybar');
   }
-
   function renderRoute() {
     const id = hashId();
-    if (id === 'main' && currentRoute && currentRoute !== 'home') return;
-    const wasHome = currentRoute === 'home';
+    if (id === 'main' && currentRoute) return;
     teardownPage();
-
-    if (id.startsWith('item-') && byId(id.slice(5))) {
-      const p = byId(id.slice(5));
-      showPage(); renderProduct(p);
+    const p = id.startsWith('item-') ? S.product(id.slice(5)) : null;
+    if (p && S.isVisible(p)) {
+      renderProduct(p);
       document.title = `${p.name}｜${SITE}`;
       currentRoute = id;
     } else if (PAGES[id]) {
-      showPage(); PAGES[id].render();
+      PAGES[id].render();
       document.title = `${PAGES[id].title}｜${SITE}`;
       currentRoute = id;
     } else {
-      if (!wasHome) showHome();
-      currentRoute = 'home';
-      const target = id && id !== 'top' && id !== 'main' ? document.getElementById(id) : null;
-      const st = history.state || {};
-      const saved = typeof st.y === 'number' ? st.y : null;
-      const how = wasHome ? smooth() : 'instant';
-      requestAnimationFrame(() => {
-        if (saved !== null) {
-          window.scrollTo({ top: saved, behavior: 'instant' });
-          // coming back from a sub-page: return focus to the link that was used
-          if (!wasHome && st.from) {
-            const back = $$(`#home a[href="${CSS.escape(st.from)}"]`).find((el) => el.tabIndex !== -1 && el.getClientRects().length);
-            if (back) back.focus({ preventScroll: true });
-          }
-        } else if (target) target.scrollIntoView({ behavior: how });
-        else if (!wasHome || id === 'top' || !id) window.scrollTo({ top: 0, behavior: how });
-        if (!wasHome && target && saved === null) {
-          const h = target.querySelector('h2, h1');
-          if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
-        }
-      });
+      const cat = id.startsWith('category-') ? id.slice(9) : '';
+      const c = cat && S.category(cat);
+      const shown = !!c && S.visibleProducts().some((x) => x.category === c.id);
+      renderList(shown ? cat : '');
+      document.title = shown ? `${c.name}｜${SITE}` : SITE;
+      currentRoute = shown ? id : 'list';
     }
-    updateHeader();
   }
-
   function onHashChange() {
     const prev = currentRoute;
     clearTimeout(toastTimer);
@@ -1115,10 +962,13 @@
     closeDrawer();
     closeMenu();
     renderRoute();
-    if (currentRoute !== 'home' && prev !== currentRoute) {
-      const pg = PAGES[currentRoute];
-      if (pg && pg.anchor) requestAnimationFrame(() => { const t = document.getElementById(pg.anchor); if (t) t.scrollIntoView({ behavior: 'instant' }); });
-      else window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (prev === currentRoute && prev !== null) return;
+    const pg = PAGES[currentRoute];
+    const st = history.state || {};
+    if (typeof st.y === 'number') requestAnimationFrame(() => window.scrollTo({ top: st.y, behavior: 'instant' }));
+    else if (pg && pg.anchor) requestAnimationFrame(() => { const t = document.getElementById(pg.anchor); if (t) t.scrollIntoView({ behavior: 'instant' }); });
+    else window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (prev !== null) {
       const h = $('[data-page-focus]', view());
       if (h) h.focus({ preventScroll: true });
     }
@@ -1129,7 +979,7 @@
      ========================================================= */
   const header = $('#siteHeader');
   function updateHeader() {
-    const solid = currentRoute !== 'home' || window.scrollY > 24 || !$('#mobileNav').hidden;
+    const solid = IS_SHOP || window.scrollY > 24 || !$('#mobileNav').hidden;
     header.classList.toggle('is-solid', solid);
   }
   function openMenu() {
@@ -1161,20 +1011,20 @@
   /* =========================================================
      Events
      ========================================================= */
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  if (IS_SHOP && 'scrollRestoration' in history) history.scrollRestoration = 'manual';
+  if (IS_SHOP) window.addEventListener('pagehide', () => history.replaceState({ ...(history.state || {}), y: window.scrollY }, ''));
 
   document.addEventListener('click', (e) => {
-    // skip link: move focus to the current view's content without routing
+    // skip link: move focus to the current content without routing
     const skip = e.target.closest('.skip-link');
     if (skip) {
       e.preventDefault();
-      const t = currentRoute === 'home' ? $('#main') : ($('[data-page-focus]', view()) || $('#main'));
+      const t = (IS_SHOP && view() && $('[data-page-focus]', view())) || $('#main');
       if (!t.hasAttribute('tabindex')) t.setAttribute('tabindex', '-1');
       t.focus({ preventScroll: true });
       t.scrollIntoView({ block: 'start', behavior: 'instant' });
       return;
     }
-
     const add = e.target.closest('[data-add]');
     if (add) { addToCart(add.dataset.add, add.dataset.variant, 1, 'none'); return; }
     const q = e.target.closest('[data-qty]');
@@ -1190,26 +1040,25 @@
     const rm = e.target.closest('[data-remove]');
     if (rm) { removeLine(rm.dataset.remove); return; }
 
-    const a = e.target.closest('a[href^="#"]');
+    const a = e.target.closest('a[href]');
     if (!a || a.dataset.jump) return;
     const href = a.getAttribute('href');
-    // remember where the shopper was on the home page, for Back
-    if (currentRoute === 'home') history.replaceState({ y: window.scrollY, from: href }, '');
     if (a.closest('#cartDrawer')) closeDrawer();
-    // links to the page we are already on (no hashchange fires)
-    if (href === location.hash || (href === '#top' && currentRoute === 'home' && !location.hash)) {
-      e.preventDefault();
-      closeMenu(); closeDrawer();
-      if (currentRoute === 'home') {
-        const t = href !== '#top' && document.getElementById(href.slice(1));
-        if (t) t.scrollIntoView({ behavior: smooth() });
-        else window.scrollTo({ top: 0, behavior: smooth() });
-      } else {
-        const pg = PAGES[currentRoute];
-        const t = pg && pg.anchor && document.getElementById(pg.anchor);
-        if (t) t.scrollIntoView({ behavior: 'instant' });
-        else window.scrollTo({ top: 0, behavior: 'instant' });
-      }
+    if (a.closest('#mobileNav')) closeMenu();
+    if (!href.startsWith('#')) return;
+    // remember the scroll position of the page being left, for Back
+    history.replaceState({ ...(history.state || {}), y: window.scrollY }, '');
+    const same = href === location.hash || (href === '#' && !location.hash);
+    if (!same) return;
+    e.preventDefault();
+    closeMenu(); closeDrawer();
+    if (!IS_SHOP) {
+      const t = href.length > 1 && document.getElementById(href.slice(1));
+      if (t) t.scrollIntoView({ behavior: smooth() }); else window.scrollTo({ top: 0, behavior: smooth() });
+    } else {
+      const pg = PAGES[currentRoute];
+      const t = pg && pg.anchor && document.getElementById(pg.anchor);
+      if (t) t.scrollIntoView({ behavior: 'instant' }); else window.scrollTo({ top: 0, behavior: 'instant' });
     }
   });
 
@@ -1223,7 +1072,6 @@
       if (!$('#cartDrawer').hidden) closeDrawer();
       else closeMenu();
     }
-    // keep focus inside the open drawer
     const trap = !$('#cartDrawer').hidden ? $('#cartDrawer') : null;
     if (e.key === 'Tab' && trap) {
       const f = $$('a[href], button:not([disabled]), input, select', trap).filter((el) => el.getClientRects().length);
@@ -1240,8 +1088,40 @@
     ticking = true;
     requestAnimationFrame(() => { updateHeader(); ticking = false; });
   }, { passive: true });
-  window.addEventListener('hashchange', onHashChange);
-  window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY) { cart = store.load(); refreshCartViews(); } });
+
+  // catalog / cart / orders changed in another tab (e.g. the admin screen)
+  S.onChange((key) => {
+    if (key === S.KEYS.orders) return;
+    const before = cart;
+    cart = S.loadCart();
+    if (key !== S.KEYS.cart && before.length) {
+      const lost = before.some((l) => !cart.some((x) => lineKey(x) === lineKey(l)));
+      const cut = before.some((l) => { const x = cart.find((y) => lineKey(y) === lineKey(l)); return x && x.qty < l.qty; });
+      if (lost || cut) { S.saveCart(cart); toast(lost ? '販売を終了した商品・売り切れの商品を、カートから外しました。' : '在庫に合わせて、カートの数量を変更しました。'); }
+    }
+    renderCount();
+    if (!$('#cartDrawer').hidden) renderDrawer();
+    if (!IS_SHOP) { renderHome(); return; }
+    // another tab's cart edit only matters on the cart / checkout screens
+    if (key === S.KEYS.cart && !/^(cart|checkout)/.test(currentRoute || '')) return;
+    if (currentRoute === 'checkout') { const f = $('#checkoutForm'); if (f) collect(f); }
+    const f = $('#buyForm');
+    const keep = f && { v: new FormData(f).get('variant'), g: f.gift ? f.gift.value : '', q: Number(($('#pdQty') || {}).textContent) || 1 };
+    const fid = document.activeElement && document.activeElement.id;
+    const y = window.scrollY;
+    renderRoute();
+    window.scrollTo({ top: y, behavior: 'instant' });
+    const nf = $('#buyForm');
+    if (keep && nf) {
+      const r = nf.querySelector(`input[name="variant"][value="${CSS.escape(keep.v || '')}"]:not(:disabled)`);
+      if (r) r.checked = true;
+      if (nf.gift && keep.g) nf.gift.value = keep.g;
+      nf.dispatchEvent(new Event('change'));
+      for (let i = 1; i < keep.q; i++) { const up = $('[data-step="1"]', nf); if (!up || up.getAttribute('aria-disabled') === 'true') break; up.click(); }
+    }
+    const back = fid && document.getElementById(fid);
+    if (back) back.focus({ preventScroll: true });
+  });
 
   /* =========================================================
      Occasional twinkles on the background stars
@@ -1249,7 +1129,7 @@
      seconds. Glints sit exactly on real stars and behind the content.
      ========================================================= */
   // [x, y, kind] per tile: kind 0 = dot, 1 = star / sparkle, 2 = burst
-  const STAR_TILES = {"a":[[68,248,0],[70,481,0],[73,510,0],[82,463,0],[91,374,0],[139,101,0],[139,293,0],[141,194,0],[148,464,0],[155,285,0],[175,81,0],[176,328,0],[194,527,0],[196,307,0],[205,142,0],[208,307,0],[220,223,0],[250,525,0],[252,308,0],[268,100,0],[268,366,0],[278,446,0],[286,489,0],[326,509,0],[360,51,0],[370,510,0],[382,213,0],[409,173,0],[414,256,0],[416,48,0],[448,544,0],[460,159,0],[490,176,0],[514,281,0],[539,44,0],[547,26,0]],"b":[[186,604,1],[197,64,2],[229,944,1],[240,153,1],[298,923,1],[399,433,0],[399,969,0],[411,167,0],[412,851,2],[495,928,2],[507,286,1],[535,59,1],[609,178,1],[614,792,2],[670,737,0],[714,28,0],[729,742,1],[731,55,1],[748,569,0],[801,787,1],[847,390,1],[866,481,0]],"c":[[8,651,1],[153,399,1],[230,137,1],[353,265,1],[528,1050,1],[615,65,1],[624,1198,1],[845,145,1],[1013,344,1],[1127,231,1],[1170,788,1]]};
+  const STAR_TILES = {"a":[[68,248,0],[70,481,0],[73,510,0],[82,463,0],[91,374,0],[139,101,0],[139,293,0],[141,194,0],[148,464,0],[155,285,0],[175,81,0],[176,328,0],[194,527,0],[196,307,0],[205,142,0],[208,307,0],[220,223,0],[250,525,0],[252,308,0],[268,100,0],[268,366,0],[278,446,0],[286,489,0],[326,509,0],[360,51,0],[370,510,0],[382,213,0],[409,173,0],[414,256,0],[416,48,0],[448,544,0],[460,159,0],[490,176,0],[514,299,0],[532,338,0],[549,454,0]],"b":[[118,843,1],[140,300,1],[190,905,0],[247,539,2],[273,418,1],[296,105,1],[335,601,0],[400,751,1],[441,236,0],[479,686,1],[500,904,2],[513,82,1],[557,454,0],[604,277,2],[619,760,0],[692,564,1],[735,905,1],[769,329,0],[858,678,1],[872,160,2],[908,436,0],[935,839,1]],"c":[[113,563,1],[143,1019,1],[195,256,1],[415,768,1],[440,134,1],[557,1162,1],[716,480,1],[808,853,1],[997,254,1],[1049,1003,1],[1147,616,1]]};
   function initTwinkles() {
     if (reduceMotion) return;
     const makeLayer = (cls) => { const d = document.createElement('div'); d.className = cls; d.setAttribute('aria-hidden', 'true'); return d; };
@@ -1263,13 +1143,13 @@
     // where each star background is painted: [tile, size, offsetX, offsetY] (matches style.css)
     const skies = [
       { page: true, layer: pageLayer, tiles: [['c', 1240, 0, 0], ['a', 560, 173, 311]] },
-      { el: () => ($('#home').hidden ? null : hero), layer: $('.hero__sky'), tiles: [['b', 980, 0, 48], ['a', 560, 140, 60]] },
+      ...(hero ? [{ el: () => hero, layer: $('.hero__sky'), tiles: [['b', 980, 0, 48], ['a', 560, 140, 60]] }] : []),
       { el: () => footer, layer: footLayer, tiles: [['b', 980, 200, 0]] },
     ];
 
     function candidates() {
       const vw = window.innerWidth, vh = window.innerHeight, top = 90;
-      const covers = [$('#home').hidden ? null : hero, footer].filter(Boolean).map((el) => el.getBoundingClientRect());
+      const covers = [hero, footer].filter(Boolean).map((el) => el.getBoundingClientRect());
       const out = [];
       for (const sky of skies) {
         let ox, oy, w, h;
@@ -1303,7 +1183,7 @@
     }
 
     // skip stars hidden behind photos, cards, the ribbon, buttons and panels
-    const COVERED = 'img, svg, .p-card, .award-ribbon, .furusato__box, .btn, .add-btn, .panel, .site-header, .badge, .pd__main, .pd__thumb, .line, .mini-line, .select, .input, .chip, .qty, .toast';
+    const COVERED = 'img, svg, .p-card, .award-ribbon, .furusato__box, .btn, .add-btn, .panel, .site-header, .badge, .pd__main, .pd__thumb, .line, .mini-line, .select, .input, .chip, .qty, .toast, .cat-tabs, .shop-info';
     const visible = (c) => { const el = document.elementFromPoint(c.vx, c.vy); return !el || !el.closest(COVERED); };
 
     function spawn() {
@@ -1338,8 +1218,16 @@
   }
 
   /* ---------- boot ---------- */
-  renderProductGrid();
   renderCount();
-  onHashChange();
+  if (IS_SHOP) {
+    window.addEventListener('hashchange', onHashChange);
+    onHashChange();
+  } else {
+    // links saved from the single-page version (index.html#item-teiki etc.) move to the shop
+    const id = hashId();
+    if (/^(item-|category-|cart$|checkout|thanks$|guide)/.test(id)) { location.replace(`shop.html#${id}`); return; }
+    renderHome();
+    updateHeader();
+  }
   initTwinkles();
 })();
