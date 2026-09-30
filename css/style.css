@@ -1321,6 +1321,32 @@ ul, ol { padding: 0; list-style: none; }
   .guide__flow i { grid-row: 1 / 3; padding-top: .3em; }
 }
 
+/* ---------- occasional twinkles on the background stars ---------- */
+.glints { position: absolute; left: 0; top: 0; width: 100%; height: 0; z-index: -1; pointer-events: none; }
+.glints--box { inset: 0; height: auto; overflow: hidden; }
+.site-footer { isolation: isolate; }
+.glint {
+  position: absolute; width: var(--g); height: var(--g);
+  margin: calc(var(--g) / -2) 0 0 calc(var(--g) / -2);
+  background:
+    linear-gradient(var(--gold-100), var(--gold-100)) center / 1px 100% no-repeat,
+    linear-gradient(90deg, var(--gold-100), var(--gold-100)) center / 100% 1px no-repeat;
+  -webkit-mask: radial-gradient(circle, #000 0 14%, rgba(0, 0, 0, .55) 30%, transparent 68%);
+          mask: radial-gradient(circle, #000 0 14%, rgba(0, 0, 0, .55) 30%, transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+  animation: glint 1.6s ease-in-out forwards;
+}
+.glint::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%; background: #fff6dc; box-shadow: 0 0 6px 2px rgba(241, 209, 125, .75);
+}
+@keyframes glint {
+  0% { opacity: 0; transform: scale(.3) rotate(0deg); }
+  40% { opacity: .95; transform: scale(1) rotate(12deg); }
+  100% { opacity: 0; transform: scale(.4) rotate(30deg); }
+}
+
 /* ---------- motion safety ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

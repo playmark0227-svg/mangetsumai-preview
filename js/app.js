@@ -1243,8 +1243,103 @@
   window.addEventListener('hashchange', onHashChange);
   window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY) { cart = store.load(); refreshCartViews(); } });
 
+  /* =========================================================
+     Occasional twinkles on the background stars
+     A star from the tiled star backgrounds flares briefly every few
+     seconds. Glints sit exactly on real stars and behind the content.
+     ========================================================= */
+  // [x, y, kind] per tile: kind 0 = dot, 1 = star / sparkle, 2 = burst
+  const STAR_TILES = {"a":[[68,248,0],[70,481,0],[73,510,0],[82,463,0],[91,374,0],[139,101,0],[139,293,0],[141,194,0],[148,464,0],[155,285,0],[175,81,0],[176,328,0],[194,527,0],[196,307,0],[205,142,0],[208,307,0],[220,223,0],[250,525,0],[252,308,0],[268,100,0],[268,366,0],[278,446,0],[286,489,0],[326,509,0],[360,51,0],[370,510,0],[382,213,0],[409,173,0],[414,256,0],[416,48,0],[448,544,0],[460,159,0],[490,176,0],[514,281,0],[539,44,0],[547,26,0]],"b":[[186,604,1],[197,64,2],[229,944,1],[240,153,1],[298,923,1],[399,433,0],[399,969,0],[411,167,0],[412,851,2],[495,928,2],[507,286,1],[535,59,1],[609,178,1],[614,792,2],[670,737,0],[714,28,0],[729,742,1],[731,55,1],[748,569,0],[801,787,1],[847,390,1],[866,481,0]],"c":[[8,651,1],[153,399,1],[230,137,1],[353,265,1],[528,1050,1],[615,65,1],[624,1198,1],[845,145,1],[1013,344,1],[1127,231,1],[1170,788,1]]};
+  function initTwinkles() {
+    if (reduceMotion) return;
+    const makeLayer = (cls) => { const d = document.createElement('div'); d.className = cls; d.setAttribute('aria-hidden', 'true'); return d; };
+    const pageLayer = makeLayer('glints');
+    document.body.prepend(pageLayer);
+    const footer = $('.site-footer');
+    const footLayer = makeLayer('glints glints--box');
+    footer.prepend(footLayer);
+    const hero = $('.hero');
+
+    // where each star background is painted: [tile, size, offsetX, offsetY] (matches style.css)
+    const skies = [
+      { page: true, layer: pageLayer, tiles: [['c', 1240, 0, 0], ['a', 560, 173, 311]] },
+      { el: () => ($('#home').hidden ? null : hero), layer: $('.hero__sky'), tiles: [['b', 980, 0, 48], ['a', 560, 140, 60]] },
+      { el: () => footer, layer: footLayer, tiles: [['b', 980, 200, 0]] },
+    ];
+
+    function candidates() {
+      const vw = window.innerWidth, vh = window.innerHeight, top = 90;
+      const covers = [$('#home').hidden ? null : hero, footer].filter(Boolean).map((el) => el.getBoundingClientRect());
+      const out = [];
+      for (const sky of skies) {
+        let ox, oy, w, h;
+        if (sky.page) {
+          ox = -window.scrollX; oy = -window.scrollY;
+          w = document.documentElement.scrollWidth; h = document.documentElement.scrollHeight;
+        } else {
+          const el = sky.el();
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.bottom < top || r.top > vh) continue;
+          ox = r.left + el.clientLeft; oy = r.top + el.clientTop; w = el.clientWidth; h = el.clientHeight;
+        }
+        const x0 = Math.max(0, -ox), x1 = Math.min(w, vw - ox), y0 = Math.max(0, top - oy), y1 = Math.min(h, vh - oy);
+        if (x1 <= x0 || y1 <= y0) continue;
+        for (const [key, size, px, py] of sky.tiles) {
+          for (let i = Math.floor((x0 - px) / size); i <= Math.floor((x1 - px) / size); i++) {
+            for (let j = Math.floor((y0 - py) / size); j <= Math.floor((y1 - py) / size); j++) {
+              for (const [sx, sy, kind] of STAR_TILES[key]) {
+                const bx = px + i * size + sx, by = py + j * size + sy;
+                if (bx < x0 + 8 || bx > x1 - 8 || by < y0 || by > y1 - 8) continue;
+                const vx = ox + bx, vy = oy + by;
+                if (sky.page && covers.some((c) => vx >= c.left && vx <= c.right && vy >= c.top && vy <= c.bottom)) continue;
+                out.push({ layer: sky.layer, x: bx, y: by, vx, vy, kind });
+              }
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    // skip stars hidden behind photos, cards, the ribbon, buttons and panels
+    const COVERED = 'img, svg, .p-card, .award-ribbon, .furusato__box, .btn, .add-btn, .panel, .site-header, .badge, .pd__main, .pd__thumb, .line, .mini-line, .select, .input, .chip, .qty, .toast';
+    const visible = (c) => { const el = document.elementFromPoint(c.vx, c.vy); return !el || !el.closest(COVERED); };
+
+    function spawn() {
+      if (document.hidden || document.body.classList.contains('is-locked')) return;
+      const list = candidates();
+      if (!list.length) return;
+      // stars and sparkles flare more often than plain dots
+      const weight = (c) => (c.kind ? 5 : 1);
+      const total = list.reduce((n, c) => n + weight(c), 0);
+      let pick = null;
+      for (let tries = 0; tries < 12 && !pick; tries++) {
+        let r = Math.random() * total;
+        const c = list.find((x) => (r -= weight(x)) <= 0) || list[0];
+        if (visible(c)) pick = c;
+      }
+      if (!pick) return;
+      const g = document.createElement('i');
+      g.className = 'glint';
+      const size = pick.kind ? 20 + Math.random() * 8 : 12 + Math.random() * 5;
+      g.style.cssText = `left:${pick.x}px;top:${pick.y}px;--g:${size.toFixed(1)}px`;
+      pick.layer.appendChild(g);
+      g.addEventListener('animationend', () => g.remove(), { once: true });
+      setTimeout(() => g.remove(), 3000);
+    }
+
+    const loop = () => {
+      spawn();
+      if (Math.random() < 0.15) setTimeout(spawn, 600 + Math.random() * 900);
+      setTimeout(loop, 2800 + Math.random() * 3000);
+    };
+    setTimeout(loop, 1600);
+  }
+
   /* ---------- boot ---------- */
   renderProductGrid();
   renderCount();
   onHashChange();
+  initTwinkles();
 })();
