@@ -19,13 +19,9 @@
   const alwaysFree = (s = settings()) => s.shipFee === 0 || s.freeShipOver === 0;
   const shipText = (s = settings()) => (alwaysFree(s) ? '全国送料無料' : `送料${yen(s.shipFee)}円。税込${yen(s.freeShipOver)}円以上のご注文で送料無料`);
 
+  // ギフト包装・のしは取り扱わない（2026-10 先方の指示）。項目を足せば復活できる
   const GIFT_OPTIONS = [
     { id: 'none', label: 'なし', paid: false },
-    { id: 'wrap', label: 'ギフト包装のみ', paid: true },
-    { id: 'oseibo', label: 'ギフト包装＋のし「御歳暮」', paid: true },
-    { id: 'orei', label: 'ギフト包装＋のし「御礼」', paid: true },
-    { id: 'uchiiwai', label: 'ギフト包装＋のし「内祝」', paid: true },
-    { id: 'muji', label: 'ギフト包装＋のし「無地」', paid: true },
   ];
   const giftFee = (g) => (g.paid ? settings().giftFee : 0);
   const giftOf = (id) => GIFT_OPTIONS.find((x) => x.id === (id || 'none')) || GIFT_OPTIONS[0];
@@ -339,7 +335,7 @@
     const s = settings();
     const crumbs = cat ? [['トップ', 'index.html'], ['オンラインショップ', '#'], [cat.name]] : [['トップ', 'index.html'], ['オンラインショップ']];
     view().innerHTML = `
-      ${pageHead(cat ? cat.name : 'オンラインショップ', crumbs, `<p class="page-lead">北海道士別市上士別町の満月農園から、ご自宅へ直接お送りします。</p><p class="photo-note">写真はイメージです</p>`, 'page-head--photo')}
+      ${pageHead(cat ? cat.name : 'オンラインショップ', crumbs, `<p class="page-lead">北海道士別市上士別町の満月農園で育てたお米を、ご自宅へお届けします。</p><p class="photo-note">写真はイメージです</p>`, 'page-head--photo')}
       <div class="page-body">
         <div class="container">
           ${cat ? '' : eventBannerHTML()}
@@ -445,7 +441,6 @@
                 </div>
               </div>
               <p class="pd__sub">
-                ${p.options.traits && p.category !== 'genmai' ? '<a href="index.html#furusato"><span>ふるさと納税で選ぶ</span></a>' : ''}
                 <a href="#guide"><span>送料・お届けについて</span></a>
               </p>
             </form>
@@ -910,10 +905,10 @@
               <section class="guide__sec" id="g-flow">
                 <h2>ご注文の流れ</h2>
                 <ol class="guide__flow">
-                  <li><i>01</i><b>商品を選ぶ</b><span>内容量やギフト包装を選んで、カートに入れます。</span></li>
+                  <li><i>01</i><b>商品を選ぶ</b><span>内容量を選んで、カートに入れます。</span></li>
                   <li><i>02</i><b>お客様情報</b><span>お名前・ご住所・お届け先を入力します。</span></li>
                   <li><i>03</i><b>ご確認・お支払い</b><span>ご注文内容を確かめて注文を確定し、Stripeの決済画面からクレジットカードでお支払いいただきます。</span></li>
-                  <li><i>04</i><b>お届け</b><span>士別市の満月農園から、常温便でお届けします。</span></li>
+                  <li><i>04</i><b>お届け</b><span>K NEXT株式会社から、常温便でお届けします。</span></li>
                 </ol>
               </section>
               <section class="guide__sec" id="g-pay">
@@ -929,7 +924,6 @@
                   <tr><th scope="row">配送方法</th><td>常温便</td></tr>
                   <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>予約商品：各商品ページに記載の時期に発送${S.eventActive(s.event) ? `<br>イベントページからのご注文：${esc(s.event.shipNote)}` : ''}</td></tr>
                   <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます（予約商品を含むご注文${S.eventActive(s.event) ? '・イベントページからのご注文' : ''}は日付指定不可）</td></tr>
-                  <tr><th scope="row">ギフト包装・のし</th><td>1点につき${yen(s.giftFee)}円（御歳暮・御礼・内祝・無地）</td></tr>
                 </tbody></table></div>
               </section>
               <section class="guide__sec" id="g-return">
@@ -939,13 +933,13 @@
               <section class="guide__sec" id="g-law">
                 <h2>特定商取引法に基づく表記</h2>
                 <div class="table-wrap"><table class="spec-table"><tbody>
-                  <tr><th scope="row">販売業者</th><td>満月農園 ${pend}</td></tr>
-                  <tr><th scope="row">運営責任者</th><td>${pend}</td></tr>
-                  <tr><th scope="row">所在地</th><td>北海道士別市上士別町 ${pend}</td></tr>
+                  <tr><th scope="row">販売業者</th><td>K NEXT株式会社</td></tr>
+                  <tr><th scope="row">運営責任者</th><td>代表取締役社長　桑田 貴裕</td></tr>
+                  <tr><th scope="row">所在地</th><td>${pend}</td></tr>
                   <tr><th scope="row">電話番号</th><td>${pend}</td></tr>
                   <tr><th scope="row">メールアドレス</th><td>${pend}</td></tr>
                   <tr><th scope="row">販売価格</th><td>各商品ページに税込価格で表示しています</td></tr>
-                  <tr><th scope="row">商品代金以外の費用</th><td>送料、ギフト包装料（ご希望の場合）</td></tr>
+                  <tr><th scope="row">商品代金以外の費用</th><td>送料</td></tr>
                   <tr><th scope="row">お支払い方法</th><td>クレジットカード（Stripeによる決済）</td></tr>
                   <tr><th scope="row">お支払い時期</th><td>ご注文の確定時</td></tr>
                   <tr><th scope="row">引き渡し時期</th><td>「送料・お届け」をご覧ください</td></tr>

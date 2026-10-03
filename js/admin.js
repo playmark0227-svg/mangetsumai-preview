@@ -455,7 +455,6 @@
           <section class="adm-sec" aria-labelledby="sec5">
             <h2 id="sec5">オプション</h2>
             <div class="adm-checks">
-              <label class="adm-check"><input type="checkbox" name="options.gift" ${draft.options.gift ? 'checked' : ''}><span>ギフト包装・のしを選べるようにする</span></label>
               <label class="adm-check"><input type="checkbox" name="options.preorder" ${draft.options.preorder ? 'checked' : ''}><span>予約商品として扱う<small>カートと購入手続きで、発送時期の案内が出ます。日付指定はできなくなります。</small></span></label>
               <label class="adm-check"><input type="checkbox" name="options.subscription" ${draft.options.subscription ? 'checked' : ''}><span>定期便として扱う<small>価格に「／1回」が付き、確認画面に定期便の案内が出ます。</small></span></label>
               <label class="adm-check"><input type="checkbox" name="options.award" ${draft.options.award ? 'checked' : ''}><span>金賞メダルを表示する<small>米-1グランプリ in らんこし 2025 で金賞を受賞したお米（令和7年産）にだけ付けてください。</small></span></label>
@@ -834,7 +833,7 @@
       <form class="adm-card" id="catAdd" style="margin-top:20px" novalidate>
         <h2>カテゴリを追加</h2>
         <div class="adm-fields">
-          <div class="adm-field"><label for="nc-name">カテゴリ名<span class="req">必須</span></label><input class="input" id="nc-name" maxlength="20" placeholder="例：野菜、加工品、ギフト"></div>
+          <div class="adm-field"><label for="nc-name">カテゴリ名<span class="req">必須</span></label><input class="input" id="nc-name" maxlength="20" placeholder="例：精米、玄米"></div>
           <div class="adm-field"><label for="nc-id">ID（URLに使われます）</label><input class="input" id="nc-id" maxlength="30" placeholder="例：vegetables" autocapitalize="off" spellcheck="false"><p class="adm-hint">半角英小文字・数字・ハイフン。空欄なら自動で付けます。</p></div>
         </div>
         <p class="adm-error" id="nc-err" hidden></p>
@@ -1096,11 +1095,10 @@
       ${head('ショップ設定')}
       <form class="adm-form" id="setForm" novalidate>
         <section class="adm-sec" aria-labelledby="ss1">
-          <h2 id="ss1">送料・ギフト包装<small>金額はすべて税込・円</small></h2>
+          <h2 id="ss1">送料<small>金額はすべて税込・円</small></h2>
           <div class="adm-fields adm-fields--3">
             ${num('s-ship', '送料', s.shipFee)}
             ${num('s-free', '送料無料になるご注文金額', s.freeShipOver, '0 にすると、常に送料無料になります')}
-            ${num('s-gift', 'ギフト包装・のし（1点あたり）', s.giftFee)}
             ${num('s-max', '同じ商品を1回で買える上限（点）', s.maxQty, '1〜99')}
           </div>
         </section>
@@ -1122,7 +1120,7 @@
       </form>`;
     $('#setForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const ids = ['#s-ship', '#s-free', '#s-gift', '#s-max'];
+      const ids = ['#s-ship', '#s-free', '#s-max'];
       ids.forEach((id) => $(id).removeAttribute('aria-invalid'));
       const bad = ids.filter((id) => !/^\d{1,7}$/.test($(id).value.trim()) || (id === '#s-max' && (Number($(id).value) < 1 || Number($(id).value) > 99)));
       if (bad.length) {
@@ -1135,7 +1133,6 @@
       const n = (id) => Math.max(0, Math.floor(Number($(id).value) || 0));
       cat.settings.shipFee = n('#s-ship');
       cat.settings.freeShipOver = n('#s-free');
-      cat.settings.giftFee = n('#s-gift');
       cat.settings.maxQty = Math.min(99, Math.max(1, n('#s-max') || 1));
       cat.settings.news = { show: $('#s-news-show').checked, text: $('#s-news-text').value.trim(), link: $('#s-news-link').value };
       if (save(cat, '設定を保存しました')) { formDirty = false; renderSettings(); focusAfter('#setForm [type=submit]'); }

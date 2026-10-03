@@ -11,15 +11,16 @@
 
   const KEYS = {
     // v2: 2026-10-01 meeting spec (5kg / 10kg / 30kg 玄米, card payment, 高輪 event page)
-    catalog: 'mangetsu.catalog.v2',
+    catalog: 'mangetsu.catalog.v3',
     cart: 'mangetsu.cart.v1',
     orders: 'mangetsu.orders.v2',
   };
   // clean up data from earlier demo versions (old catalog, test orders paid by 代金引換)
-  try { ['mangetsu.catalog.v1', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
 
   const RICE_STORE = '高温多湿・直射日光を避け、涼しい場所で保存してください';
   const PRODUCER = '満月農園（北海道士別市上士別町）';
+  const SELLER = 'K NEXT株式会社';
   const G = {
     bowl: { src: 'assets/img/bowl.webp', alt: '茶碗に盛った炊きたての満月米', fit: 'contain' },
     hand: { src: 'assets/img/rice-hand-sm.webp', alt: '手のひらにすくった満月米の精米', fit: 'cover' },
@@ -77,10 +78,10 @@
         visual: { kind: 'bag', style: 'single', label: '5kg' },
         gallery: RICE_GALLERY,
         variants: [{ id: '5kg', label: '5kg', price: 4980, stock: null }],
-        options: { gift: true, award: true, preorder: false, subscription: false, traits: true },
+        options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '5kg'], ['精米年月日', '袋に記載'],
-          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
         ],
       },
       {
@@ -98,10 +99,10 @@
         visual: { kind: 'bag', style: 'double', label: '5kg' },
         gallery: [G.bowl, G.teishoku, G.onigiri, G.hand],
         variants: [{ id: '10kg', label: '10kg（5kg×2袋）', price: 9680, stock: null }],
-        options: { gift: true, award: true, preorder: false, subscription: false, traits: true },
+        options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '10kg（5kg×2袋）'], ['精米年月日', '袋に記載'],
-          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
         ],
       },
       {
@@ -122,10 +123,10 @@
           { id: '5kg', label: '5kg', price: 5280, stock: null },
           { id: '10kg', label: '10kg（5kg×2袋）', price: 10280, stock: null },
         ],
-        options: { gift: true, award: false, preorder: true, subscription: false, traits: true },
+        options: { gift: false, award: false, preorder: true, subscription: false, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和8年産'], ['内容量', '5kg／10kg（5kg×2袋）'], ['精米年月日', '袋に記載'],
-          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+          ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
           ['発送時期', '2026年12月上旬より順次発送の予定です'],
         ],
       },
@@ -147,7 +148,7 @@
         options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '玄米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '30kg'], ['調製年月日', '袋に記載'], ['包装', '紙袋'],
-          ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+          ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
         ],
       },
       {
@@ -172,7 +173,7 @@
         options: { gift: false, award: false, preorder: false, subscription: true, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和7年産（2026年12月上旬以降のお届け分は令和8年産）'], ['内容量', '5kg／10kg（5kg×2袋）'],
-          ['精米年月日', '袋に記載'], ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER],
+          ['精米年月日', '袋に記載'], ['賞味期限', '精米日より1ヵ月（目安）'], ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
           ['お届け周期', '毎月／隔月からお選びいただけます'], ['休止・解約・お約束回数', '（準備中）'],
         ],
       },
@@ -221,7 +222,7 @@
       gallery: (Array.isArray(p.gallery) ? p.gallery : []).filter((g) => g && str(g.src)).map((g) => ({ src: g.src, alt: str(g.alt), fit: g.fit === 'contain' ? 'contain' : 'cover' })),
       variants: variants.length ? variants : [{ id: 'v1', label: '通常', price: 0, stock: null }],
       options: {
-        gift: !!(p.options && p.options.gift),
+        gift: false, // ギフト包装・のしは取り扱わない
         award: !!(p.options && p.options.award),
         preorder: !!(p.options && p.options.preorder),
         subscription: !!(p.options && p.options.subscription),

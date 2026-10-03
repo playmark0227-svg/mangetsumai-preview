@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Maru+Gothic:wght@400;500&family=Josefin+Sans:wght@300;400&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300&text=%E5%8C%97%E6%B5%B7%E9%81%93%E5%A3%AB%E5%88%A5%E5%B8%82%E7%94%A3%E3%81%AA%E3%81%A4%E3%81%BC%E3%81%97&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.38' r='.7'%3E%3Cstop offset='0' stop-color='%23fdeab0'/%3E%3Cstop offset='.6' stop-color='%23efcb78'/%3E%3Cstop offset='1' stop-color='%23d7ac58'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='url(%23g)'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body data-page="home">
 <a class="skip-link" href="#main">本文へ移動</a>
@@ -32,7 +32,6 @@
         <li><a href="#story">満月農園</a></li>
         <li><a href="#why">美味しさの理由</a></li>
         <li><a href="#howto">炊き方</a></li>
-        <li><a href="#furusato">ふるさと納税</a></li>
         <li><a href="#faq">よくある質問</a></li>
         <li class="gnav__shop"><a href="shop.html"><span class="gnav__moon" aria-hidden="true"></span>オンラインショップ</a></li>
       </ul>
@@ -59,7 +58,6 @@
       <li><a href="#why"><span>美味しさの理由</span><small lang="en" aria-hidden="true">Reason</small></a></li>
       <li><a href="#nanatsuboshi"><span>ななつぼし</span><small lang="en" aria-hidden="true">Variety</small></a></li>
       <li><a href="#howto"><span>おいしい炊き方</span><small lang="en" aria-hidden="true">How to cook</small></a></li>
-      <li><a href="#furusato"><span>ふるさと納税</span><small lang="en" aria-hidden="true">Furusato</small></a></li>
       <li><a href="#faq"><span>よくある質問</span><small lang="en" aria-hidden="true">FAQ</small></a></li>
       <li><a href="shop.html#guide"><span>ご利用ガイド</span><small lang="en" aria-hidden="true">Guide</small></a></li>
     </ul>
@@ -112,7 +110,7 @@
 
       <div class="hero__actions">
         <a class="btn btn--gold" href="shop.html">満月米を購入する</a>
-        <a class="btn btn--line" href="#furusato">ふるさと納税で選ぶ</a>
+        <a class="btn btn--line" href="#why">美味しさの理由</a>
       </div>
 
       <a class="hero__news" id="heroNews" href="shop.html">
@@ -141,12 +139,12 @@
         <h2 class="story__title" id="storyTitle">山から湧き出た、<br>一番最初の水で。</h2>
         <div class="story__text">
           <p class="story__lead">「満月」は、つくり手の苗字です。</p>
-          <p>北海道サムライ士別、上士別町の山奥。その湧き水で、お米3種と、野菜や果物、花など100種以上を育てています。</p>
+          <p>北海道サムライ士別、上士別町の山奥。山から湧き出た一番最初の水で、お米を育てています。</p>
           <p>大自然の恩恵をたっぷりと受けた<span class="nw">「満月米」を、</span>どうぞご賞味ください。</p>
         </div>
         <dl class="facts">
-          <div><dt>育てているお米</dt><dd><b>3</b><span>種</span></dd></div>
-          <div><dt>野菜・果物・花</dt><dd><b>100</b><span>種以上</span></dd></div>
+          <div><dt>品種</dt><dd class="facts__place">ななつぼし</dd></div>
+          <div><dt>受賞</dt><dd class="facts__place">米-1グランプリ<br>in らんこし 2025 金賞</dd></div>
           <div><dt>産地</dt><dd class="facts__place">北海道士別市<br>上士別町</dd></div>
         </dl>
       </div>
@@ -276,7 +274,7 @@
           </p>
           <h2 class="sec-title" id="productsTitle">満月米をお届けします</h2>
         </div>
-        <p class="sec-head__note">士別市上士別町の満月農園から、ご自宅へ直接お送りします。<br class="u-pc">令和8年産の新米は、ただいまご予約を受け付けています。</p>
+        <p class="sec-head__note">北海道士別市上士別町の満月農園で育てたお米を、ご自宅へお届けします。<br class="u-pc">令和8年産の新米は、ただいまご予約を受け付けています。</p>
       </header>
       <div id="eventBanner" hidden></div>
       <div class="product-grid" id="productGrid"></div>
@@ -312,34 +310,6 @@
     </div>
   </section>
 
-  <!-- Furusato -->
-  <section class="section furusato" id="furusato" aria-labelledby="furusatoTitle">
-    <div class="container">
-      <div class="furusato__box">
-        <div class="furusato__text">
-          <p class="eyebrow eyebrow--ink"><span lang="en">Furusato Nozei</span></p>
-          <h2 id="furusatoTitle">ふるさと納税でも<br>お選びいただけます</h2>
-          <p>北海道士別市への寄附の返礼品として、<span class="nw">楽天ふるさと納税</span>と<span class="nw">JRE MALLふるさと納税</span>でお申し込みいただけます。</p>
-        </div>
-        <ul class="furusato__links">
-          <li>
-            <a class="qr-card" href="https://item.rakuten.co.jp/f012203-shibetsu/a7018/" target="_blank" rel="noopener">
-              <img src="assets/img/qr-rakuten.png" alt="" width="252" height="252">
-              <span class="qr-card__name">楽天</span>
-              <span class="qr-card__go">楽天で見る<span class="visually-hidden">（新しいタブで開きます）</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h8v8M13 3 4 12" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
-            </a>
-          </li>
-          <li>
-            <a class="qr-card" href="https://furusato.jreast.co.jp/furusato/products/detail/C273/C273-5992422" target="_blank" rel="noopener">
-              <img src="assets/img/qr-jre.png" alt="" width="280" height="280">
-              <span class="qr-card__name">JRE MALL</span>
-              <span class="qr-card__go">JRE MALLで見る<span class="visually-hidden">（新しいタブで開きます）</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h8v8M13 3 4 12" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </section>
 
   <!-- FAQ -->
   <section class="section faq" id="faq" aria-labelledby="faqTitle">
@@ -364,10 +334,6 @@
         <details class="qa">
           <summary><span class="qa__q" aria-hidden="true">Q</span>新米はいつ届きますか？</summary>
           <div class="qa__a"><p>令和8年産の新米は、<span class="nw">2026年12月上旬</span>より順次発送の予定です。</p></div>
-        </details>
-        <details class="qa">
-          <summary><span class="qa__q" aria-hidden="true">Q</span>贈り物にできますか？</summary>
-          <div class="qa__a"><p>商品ページの「ギフト包装・のし」で、ギフト包装とのし（御歳暮・御礼・内祝・<span class="nw">無地）を</span>お選びいただけます。</p></div>
         </details>
         <details class="qa">
           <summary><span class="qa__q" aria-hidden="true">Q</span>送料はいくらですか？</summary>
@@ -396,6 +362,7 @@
         </a>
         <p class="site-footer__tagline">一粒一粒に、士別の自然が詰まっています。</p>
         <p class="site-footer__addr">生産　満月農園<br>北海道士別市上士別町</p>
+        <p class="site-footer__addr">販売者　K NEXT株式会社<br>代表取締役社長　桑田 貴裕</p>
       </div>
       <nav class="site-footer__nav" aria-label="フッターメニュー">
         <div>
@@ -404,7 +371,6 @@
             <li><a href="shop.html">オンラインショップ</a></li>
             <li><a href="shop.html#cart">カート</a></li>
             <li><a href="shop.html#guide">ご利用ガイド</a></li>
-            <li><a href="#furusato">ふるさと納税</a></li>
           </ul>
         </div>
         <div>
@@ -449,8 +415,8 @@
 <div class="toast" id="toast" hidden></div>
 <p class="visually-hidden" id="srStatus" role="status"></p>
 
-<script src="js/store.js?v=9"></script>
-<script src="js/ui.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/store.js?v=10"></script>
+<script src="js/ui.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
 </body>
 </html>
