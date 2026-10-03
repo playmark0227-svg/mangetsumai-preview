@@ -11,12 +11,12 @@
 
   const KEYS = {
     // v2: 2026-10-01 meeting spec (5kg / 10kg / 30kg 玄米, card payment, 高輪 event page)
-    catalog: 'mangetsu.catalog.v3',
+    catalog: 'mangetsu.catalog.v4',
     cart: 'mangetsu.cart.v1',
     orders: 'mangetsu.orders.v2',
   };
   // clean up data from earlier demo versions (old catalog, test orders paid by 代金引換)
-  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.catalog.v3', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
 
   const RICE_STORE = '高温多湿・直射日光を避け、涼しい場所で保存してください';
   const PRODUCER = '満月農園（北海道士別市上士別町）';
@@ -77,7 +77,7 @@
         ship: 'ご注文から3〜5営業日で発送します',
         visual: { kind: 'bag', style: 'single', label: '5kg' },
         gallery: RICE_GALLERY,
-        variants: [{ id: '5kg', label: '5kg', price: 4980, stock: null }],
+        variants: [{ id: '5kg', label: '5kg', price: 3600, stock: null }],
         options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '5kg'], ['精米年月日', '袋に記載'],
@@ -98,7 +98,7 @@
         ship: 'ご注文から3〜5営業日で発送します',
         visual: { kind: 'bag', style: 'double', label: '5kg' },
         gallery: [G.bowl, G.teishoku, G.onigiri, G.hand],
-        variants: [{ id: '10kg', label: '10kg（5kg×2袋）', price: 9680, stock: null }],
+        variants: [{ id: '10kg', label: '10kg（5kg×2袋）', price: 7000, stock: null }],
         options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '精米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '10kg（5kg×2袋）'], ['精米年月日', '袋に記載'],
@@ -120,8 +120,8 @@
         visual: { kind: 'bag', style: 'seal', label: '5kg' },
         gallery: [G.ears, G.gohan, G.bowl, G.grains],
         variants: [
-          { id: '5kg', label: '5kg', price: 5280, stock: null },
-          { id: '10kg', label: '10kg（5kg×2袋）', price: 10280, stock: null },
+          { id: '5kg', label: '5kg', price: 3500, stock: null },
+          { id: '10kg', label: '10kg（5kg×2袋）', price: 6900, stock: null },
         ],
         options: { gift: false, award: false, preorder: true, subscription: false, traits: true },
         specs: [
@@ -144,7 +144,7 @@
         ship: 'ご注文から3〜5営業日で発送します',
         visual: { kind: 'bag', style: 'plain', label: '30kg' },
         gallery: [G.paddy, G.ears, G.summer],
-        variants: [{ id: '30kg', label: '30kg', price: 24800, stock: null }],
+        variants: [{ id: '30kg', label: '30kg', price: 16500, stock: null }],
         options: { gift: false, award: true, preorder: false, subscription: false, traits: true },
         specs: [
           ['名称', '玄米'], ['原料玄米', '北海道産 ななつぼし 令和7年産'], ['内容量', '30kg'], ['調製年月日', '袋に記載'], ['包装', '紙袋'],
@@ -166,9 +166,9 @@
         visual: { kind: 'bag', style: 'phases', label: '5kg' },
         gallery: [G.teishoku, G.bowl, G.onigiri, G.grains],
         variants: [
-          { id: 'm5', label: '毎月 5kg', price: 4731, stock: null },
-          { id: 'b5', label: '隔月 5kg', price: 4731, stock: null },
-          { id: 'm10', label: '毎月 10kg', price: 9196, stock: null },
+          { id: 'm5', label: '毎月 5kg', price: 3420, stock: null },
+          { id: 'b5', label: '隔月 5kg', price: 3420, stock: null },
+          { id: 'm10', label: '毎月 10kg', price: 6650, stock: null },
         ],
         options: { gift: false, award: false, preorder: false, subscription: true, traits: true },
         specs: [
