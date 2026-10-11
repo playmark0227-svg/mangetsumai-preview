@@ -341,7 +341,7 @@
   const blankProduct = () => ({
     id: `item-${Date.now().toString(36).slice(-5)}`,
     name: '', category: (S.catalog().categories[0] || {}).id || '', status: 'draft', featured: false,
-    meta: '', badge: { text: '', line: true }, card: '', when: '3〜5営業日で発送', lead: '', ship: 'ご注文から3〜5営業日で発送します',
+    meta: '', badge: { text: '', line: true }, card: '', when: 'ご購入順に順次発送', lead: '', ship: 'ご購入いただいた順に、順次発送します',
     visual: { kind: 'image', src: '', fit: 'cover' }, gallery: [],
     variants: [{ id: 'v1', label: '', price: '', stock: null }],
     options: { gift: false, award: false, preorder: false, subscription: false, traits: false },
@@ -431,11 +431,11 @@
               </div>
               <div class="adm-field">
                 <label for="f-meta">小見出し</label>
-                <input class="input" id="f-meta" name="meta" value="${esc(draft.meta)}" maxlength="30" placeholder="例：令和7年産・精米">
+                <input class="input" id="f-meta" name="meta" value="${esc(draft.meta)}" maxlength="30" placeholder="例：令和8年産・精米">
               </div>
               <div class="adm-field">
                 <label for="f-when">発送時期（一覧用の短い文）</label>
-                <input class="input" id="f-when" name="when" value="${esc(draft.when)}" maxlength="30" placeholder="例：3〜5営業日で発送">
+                <input class="input" id="f-when" name="when" value="${esc(draft.when)}" maxlength="30" placeholder="例：ご購入順に順次発送">
               </div>
               <div class="adm-field adm-field--full">
                 <label for="f-card">一覧用のひとこと</label>
@@ -447,7 +447,7 @@
               </div>
               <div class="adm-field adm-field--full">
                 <label for="f-ship">発送について（商品ページ）</label>
-                <input class="input" id="f-ship" name="ship" value="${esc(draft.ship)}" maxlength="60" placeholder="例：ご注文から3〜5営業日で発送します">
+                <input class="input" id="f-ship" name="ship" value="${esc(draft.ship)}" maxlength="60" placeholder="例：ご購入いただいた順に、順次発送します">
               </div>
             </div>
           </section>

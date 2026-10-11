@@ -56,6 +56,8 @@
   const hasPreorder = () => preorderLines().length > 0;
   const mixedPreorder = () => hasPreorder() && cart.some((l) => !S.product(l.pid).options.preorder);
   const preorderShip = () => { const l = preorderLines()[0]; return l ? S.product(l.pid).ship : ''; };
+  // the guide mentions 予約商品 only while one is on sale
+  const sellsPreorder = () => S.visibleProducts().some((p) => p.options.preorder);
   const variantName = (p, v) => (p.variants.length > 1 ? `${p.name} ${v.label}` : p.name);
 
   function addToCart(pid, vid, qty = 1, gift = 'none') {
@@ -357,7 +359,7 @@
             : '<div class="empty"><span class="empty__moon" aria-hidden="true"></span><p>このカテゴリの商品は、ただいま準備中です。</p></div>'}
           <aside class="shop-info" aria-label="お買いものについて">
             <div><h2>送料</h2><p>${shipText(s)}です（<span class="nw">沖縄・離島</span>は別途お見積もり）。</p></div>
-            <div><h2>発送</h2><p>ご注文から3〜5営業日で発送します。予約商品は、各商品ページに記載の時期にお届けします。</p></div>
+            <div><h2>発送</h2><p>ご購入いただいた順に、順次発送します。${sellsPreorder() ? '予約商品は、各商品ページに記載の時期にお届けします。' : ''}</p></div>
             <div><h2>お支払い</h2><p>クレジットカード（Stripeの決済画面でお支払い）。<a class="link" href="#guide">ご利用ガイド</a></p></div>
           </aside>
         </div>
@@ -800,7 +802,7 @@
       ['メールアドレス', esc(draft.email)],
       ['お届け先', draft.giftTo ? `${esc(draft.sname)} さま<br>${addr(draft.szip, draft.spref, draft.saddr1, draft.saddr2)}<br>${esc(draft.stel)}` : 'ご注文者さまと同じ'],
       ...(hasGift() ? [['のしの名入れ', draft.noshiName ? esc(draft.noshiName) : 'なし']] : []),
-      ['お届け時期', pre ? `${esc(preorderShip())}（予約商品の発送にあわせてお届け）` : ev ? esc(ev.shipNote) : 'ご注文から3〜5営業日で発送'],
+      ['お届け時期', pre ? `${esc(preorderShip())}（予約商品の発送にあわせてお届け）` : ev ? esc(ev.shipNote) : 'ご購入いただいた順に、順次発送'],
       ['お届け日時', `希望日：${pre || ev ? '指定なし' : esc(draft.date || '最短でお届け')}／時間帯：${esc(draft.time || '指定なし')}`],
       ['お支払い方法', esc(pay.label)],
       ['お支払い時期', esc(pay.timing)],
@@ -922,8 +924,8 @@
                 <div class="table-wrap"><table class="spec-table"><tbody>
                   <tr><th scope="row">送料</th><td>${shipText(s)}<br><span class="pending">沖縄・離島は別途お見積もりとなります</span></td></tr>
                   <tr><th scope="row">配送方法</th><td>常温便</td></tr>
-                  <tr><th scope="row">発送時期</th><td>通常商品：ご注文から3〜5営業日で発送<br>予約商品：各商品ページに記載の時期に発送${S.eventActive(s.event) ? `<br>イベントページからのご注文：${esc(s.event.shipNote)}` : ''}</td></tr>
-                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます（予約商品を含むご注文${S.eventActive(s.event) ? '・イベントページからのご注文' : ''}は日付指定不可）</td></tr>
+                  <tr><th scope="row">発送時期</th><td>${sellsPreorder() ? '通常商品：ご購入いただいた順に、順次発送<br>予約商品：各商品ページに記載の時期に発送' : 'ご購入いただいた順に、順次発送'}${S.eventActive(s.event) ? `<br>イベントページからのご注文：${esc(s.event.shipNote)}` : ''}</td></tr>
+                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます${sellsPreorder() || S.eventActive(s.event) ? `（${[sellsPreorder() ? '予約商品を含むご注文' : '', S.eventActive(s.event) ? 'イベントページからのご注文' : ''].filter(Boolean).join('・')}は日付指定不可）` : ''}</td></tr>
                 </tbody></table></div>
               </section>
               <section class="guide__sec" id="g-return">
