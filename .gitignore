@@ -2,3 +2,7 @@
 *.tmp
 .tmp.driveupload/
 .tmp.drivedownload/
+server/.dev/
+server/.dev.vars
+server/.wrangler/
+server/node_modules/

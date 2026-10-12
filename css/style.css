@@ -1190,11 +1190,18 @@ ul, ol { padding: 0; list-style: none; }
 }
 @media (max-height: 720px) {
   .drawer__foot { gap: 10px; padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 12px); }
-  .drawer__foot .summary > div:not(.summary__total) { display: none; }
-  .drawer__foot .summary .summary__total { padding-top: 0; margin-top: 0; border-top: 0; }
+  /* only 商品小計 is left out: the 送料 row is what the 送料の目安 select is for */
+  .drawer__foot .summary .summary__sub { display: none; }
+  .drawer__foot .summary { gap: 6px; }
+  .drawer__foot .summary .summary__total { padding-top: 8px; margin-top: 0; }
   .drawer__foot .summary__total dd .price { font-size: 22px; }
   .drawer__foot .free-ship { padding: 8px 10px; }
   .drawer__foot .btn { --h: 50px; }
+}
+/* landscape phones: the items and the totals scroll together, so the list is not squeezed to a sliver */
+@media (max-height: 480px) {
+  .drawer { overflow-y: auto; overscroll-behavior: contain; }
+  .drawer__body { overflow: visible; }
 }
 
 /* ---------- toast ---------- */
@@ -1266,6 +1273,7 @@ ul, ol { padding: 0; list-style: none; }
 .pay .chip small { grid-column: 2; }
 .pay-total { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; font-family: var(--font-round); font-size: 14px; color: var(--gold-300); letter-spacing: .08em; }
 .pay-total .price { font-size: 26px; }
+.pay-total__label { white-space: nowrap; }
 .mini-line { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(208, 173, 109, .15); font-family: var(--font-round); font-size: 13px; line-height: 1.55; }
 .mini-line .line__img { width: 52px; }
 .mini-line .price { font-size: 14px; }
@@ -1309,6 +1317,8 @@ ul, ol { padding: 0; list-style: none; }
 .guide__flow i { font-style: normal; font-family: var(--font-latin); font-size: 12px; letter-spacing: .2em; color: var(--gold-400); }
 .table-wrap { overflow-x: auto; }
 .pending { color: var(--text-faint); }
+/* 4 columns do not fit beside the table of contents on narrow laptops (the row pushed the page sideways) */
+@media (max-width: 1000px) { .guide__flow { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 860px) {
   .guide { grid-template-columns: 1fr; }
   .guide__toc { position: static; grid-template-columns: 1fr 1fr; }
@@ -1471,6 +1481,8 @@ ul, ol { padding: 0; list-style: none; }
 .cat-tabs a[aria-current="page"] span { color: var(--gold-800); }
 .sort { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-round); font-size: 13px; color: var(--text-dim); letter-spacing: .08em; }
 .select--sm { min-height: 42px; width: auto; padding-block: 8px; font-size: 14px; }
+/* iOS Safari zooms the page into form controls under 16px */
+@media (max-width: 760px), (pointer: coarse) { .select--sm { font-size: 16px; } }
 .shop-info {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
   margin-top: clamp(48px, 6vw, 72px); border-block: 1px solid var(--line-soft);
@@ -1612,3 +1624,82 @@ ul, ol { padding: 0; list-style: none; }
 .pay-card span { font-family: var(--font-round); font-size: 13px; line-height: 1.8; color: var(--text-dim); word-break: auto-phrase; }
 
 .empty p { word-break: auto-phrase; }
+
+/* =========================================================
+   送料（地域 × 重さ）・本番モード
+   ========================================================= */
+/* demo-only notes in the HTML (footer etc.) are hidden in live mode */
+html[data-mode="live"] [data-demo-only] { display: none !important; }
+
+/* 送料の目安 (cart drawer / cart page) */
+.sum-block { display: contents; }
+.ship-est { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+.ship-est__label { display: grid; gap: 1px; font-family: var(--font-round); font-size: 13.5px; letter-spacing: .08em; color: var(--gold-300); line-height: 1.5; }
+.ship-est__label small { font-size: 11.5px; letter-spacing: .04em; color: var(--text-faint); }
+.ship-est .select { flex: 1 1 140px; max-width: 210px; }
+.summary dt small { display: block; margin-top: 2px; font-size: 11.5px; letter-spacing: .02em; color: var(--text-faint); }
+.summary .summary__total dt small { display: inline; margin: 0; font-size: 12px; color: var(--text-dim); }
+.summary dd.summary__tbd { font-family: var(--font-round); font-weight: 400; font-size: 12.5px; letter-spacing: .04em; color: var(--text-dim); text-align: right; }
+.pay-total__tbd { font-size: 12.5px; color: var(--text-dim); text-align: right; letter-spacing: .04em; }
+.panel__note { font-family: var(--font-round); font-size: 13px; text-align: center; }
+@media (max-height: 720px) {
+  .drawer__foot .ship-est__label small { display: none; }
+}
+
+/* warnings: cart changed by the server, catalog not loaded */
+.notice--warn { box-shadow: inset 0 0 0 1px rgba(240, 164, 136, .55); background: rgba(240, 164, 136, .06); }
+.notice--warn b { color: var(--danger); }
+.notice ul { display: grid; gap: 4px; margin: 6px 0; }
+.notice li { position: relative; padding-left: 1.1em; }
+.notice li::before { content: ""; position: absolute; left: 2px; top: .8em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold-400); }
+.notice > span { display: block; }
+.cart-changed { margin-bottom: clamp(24px, 3vw, 36px); }
+.load-error, .paid-note { display: grid; justify-items: start; gap: 10px; }
+.load-error b, .paid-note b { margin: 0; }
+.load-error-wrap { margin-bottom: 24px; }
+/* shop: the notices (catalog not loaded, an earlier order already paid) sit above #view,
+   so they take over the room for the fixed header */
+.container.load-error-wrap { display: grid; gap: 12px; margin-bottom: 0; padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px) + 20px); padding-bottom: 16px; }
+.load-error-wrap + .view--page { padding-top: 0; }
+.place-error { margin-top: 12px; }
+/* confirm page: the same order was paid a short while ago (409 duplicate_paid). Takes the place of the
+   order button until the shopper picks one of its two buttons (side by side when they fit) */
+.dup-ask { display: grid; justify-items: start; gap: 8px; }
+.dup-ask b { margin: 0; }
+.dup-ask .dup-ask__actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; margin-top: 6px; }
+.dup-ask__actions .btn { flex: 1 1 12em; }
+
+/* #thanks while the payment is being checked */
+.thanks.is-busy .thanks__moon { animation: moonWait 2.4s ease-in-out infinite; }
+@keyframes moonWait { 50% { opacity: .55; transform: scale(.95); } }
+
+/* guide: 送料表 */
+/* the table scrolls inside .rate-wrap instead of widening the guide (861–975px overflowed the page) */
+.guide__body, .guide__sec { grid-template-columns: minmax(0, 1fr); }
+.guide__sec .guide__example { font-size: 14px; color: var(--text-dim); }
+.guide__sec .guide__free { color: var(--gold-300); }
+.rate-wrap { overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line-soft); }
+.rate-table { width: 100%; min-width: 300px; border-collapse: separate; border-spacing: 0; font-family: var(--font-round); font-size: 14px; font-variant-numeric: tabular-nums; }
+.rate-table caption { padding: 12px 14px; text-align: left; font-size: 13px; letter-spacing: .06em; color: var(--text-dim); border-bottom: 1px solid var(--line-soft); }
+.rate-table th, .rate-table td { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); text-align: right; vertical-align: middle; line-height: 1.5; }
+.rate-table thead th { font-weight: 400; font-size: 12.5px; letter-spacing: .04em; color: var(--text-dim); white-space: nowrap; background: var(--night-900); }
+.rate-table thead th small { font-size: 11px; }
+.rate-table td { color: var(--text); letter-spacing: .02em; }
+.rate-table th[scope="row"], .rate-table thead th:first-child { position: sticky; left: 0; z-index: 1; text-align: left; }
+.rate-table th[scope="row"] { width: 40%; font-weight: 400; background: var(--night-800); }
+.rate-table th[scope="row"] b { display: block; font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .1em; color: var(--rice); }
+.rate-table th[scope="row"] small { display: block; font-size: 11.5px; line-height: 1.6; letter-spacing: .02em; color: var(--text-faint); }
+.rate-table tbody tr:last-child > * { border-bottom: 0; }
+.rate-table tr.is-mine > td { background: rgba(229, 195, 140, .1); }
+.rate-table tr.is-mine > th { background: linear-gradient(rgba(229, 195, 140, .1), rgba(229, 195, 140, .1)), var(--night-800); box-shadow: inset 2px 0 0 var(--gold-300); }
+@media (max-width: 560px) {
+  .rate-table { font-size: 13px; }
+  .rate-table caption { padding: 10px; font-size: 12px; }
+  .rate-table th, .rate-table td { padding: 9px 5px; }
+  .rate-table th[scope="row"], .rate-table thead th:first-child { width: 6.6em; padding-left: 10px; }
+  .rate-table td:last-child, .rate-table thead th:last-child { padding-right: 10px; }
+  .rate-table thead th { font-size: 12px; }
+  .rate-table thead th small { display: block; }
+  .rate-table th[scope="row"] b { font-size: 14px; letter-spacing: .06em; }
+  .rate-table th[scope="row"] small { font-size: 10.5px; }
+}

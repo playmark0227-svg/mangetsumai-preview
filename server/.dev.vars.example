@@ -1,0 +1,33 @@
+# ローカル用の設定（このファイルを .dev.vars にコピーして使う。.dev.vars は git に入れない）
+# node dev/serve.mjs と wrangler dev の両方が読みます。
+#
+# 何も設定しなければ、ローカルの擬似 Stripe で動きます（本物の決済はしません）。
+# Stripe のテストモードで試すときだけ、下の 2 行を設定してください。
+#   STRIPE_SECRET_KEY: Stripe ダッシュボードの「API キー」のページ（https://dashboard.stripe.com/apikeys）を
+#                      サンドボックス（テスト環境）に切り替えた状態で表示される「シークレットキー」（sk_test_...）
+#   STRIPE_WEBHOOK_SECRET: `stripe listen --forward-to localhost:8787/api/stripe/webhook` が表示する whsec_...
+# STRIPE_SECRET_KEY=（sk_test_ で始まるテスト用シークレットキーを貼り付け）
+# STRIPE_WEBHOOK_SECRET=（whsec_ で始まる値を貼り付け）
+
+# 管理画面のパスワード（32文字以上。英数字と記号のみ、空白なし）
+# 作り方の例：node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+ADMIN_TOKEN=dev-admin-token-please-change-this
+
+# wrangler dev で動かすときの値（node dev/serve.mjs では自動で設定されます）
+# SITE_URL=http://127.0.0.1:8790
+# ALLOWED_ORIGINS=http://127.0.0.1:8790
+
+# 任意：同じ接続元から 1 分あたりに受け付ける回数（書かなければ 30 / 120 / 120。README の「回数制限」）
+# LIMIT_CHECKOUT=30
+# LIMIT_STATUS=120
+# LIMIT_CANCEL=120
+
+# 任意：Stripe の決済画面の有効期限（分。30〜1440、書かなければ 30）。取り置きはこれ＋10 分
+# SESSION_MINUTES=30
+
+# 任意：同じ接続元が 1 種類につき取り置ける数（書かなければ 0＝上限なし。README の「在庫の取り置き」）
+# HOLD_PER_CLIENT=20
+
+# 任意：注文に残す「接続元の印」（IP アドレスそのものではなく、この値を使ったハッシュ）の秘密の値。
+# 書かなければ ADMIN_TOKEN を使います。作り方は ADMIN_TOKEN と同じです
+# HOLD_SALT=

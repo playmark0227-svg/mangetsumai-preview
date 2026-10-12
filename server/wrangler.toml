@@ -1,0 +1,49 @@
+# 満月米 API — Cloudflare Workers の設定
+# 秘密の値（Stripe のキー、管理用パスワード）はここに書かない：
+#   npx wrangler secret put STRIPE_SECRET_KEY
+#   npx wrangler secret put STRIPE_WEBHOOK_SECRET
+#   npx wrangler secret put ADMIN_TOKEN
+#   npx wrangler secret put HOLD_SALT        # 任意（README の「設定」）
+name = "mangetsumai-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# ショップの URL（最後のスラッシュなし）。Stripe の決済後・キャンセル後に戻る先
+SITE_URL = "https://playmark0227-svg.github.io/mangetsumai-preview"
+# API を呼んでよいサイトのオリジン（カンマ区切り・完全一致。パスは含めない）
+ALLOWED_ORIGINS = "https://playmark0227-svg.github.io"
+# 任意：Stripe API のバージョン。何も書かなければ src/stripe.js の固定値（2026-09-30.endive）を使います。
+# 変えるときだけ書いてください（Stripe の Webhook エンドポイントも同じバージョンにします）
+# STRIPE_API_VERSION = "2026-09-30.endive"
+# 任意：Stripe の決済画面の有効期限（分）。30〜1440 の整数で、書かなければ 30（Stripe の最短）。
+# 在庫数を入れた商品は、この時間＋10 分のあいだ取り置きます（短いほど、支払われなかった分が早く戻ります）
+# SESSION_MINUTES = "30"
+# 任意：同じ接続元（IP アドレス。IPv6 は /64 ごと）から 1 分あたりに受け付ける回数。書かなければ下の値です。
+# イベント会場の Wi-Fi や携帯電話の回線では、何百台ものスマートフォンが同じ接続元になるため、多めにしています。
+# 1 分ごとに数え直すので、超えてしまっても同じ接続元のお客さまが待つのは最長 1 分です
+# LIMIT_CHECKOUT = "30"    # 注文（決済画面の作成。取り置きで断った分も数える）。超えると 429
+# LIMIT_STATUS = "120"     # 完了画面からの決済状況の確認。超えると Stripe に問い合わせず、保存済みの状態を返す
+# LIMIT_CANCEL = "120"     # 支払わずに戻ったときの決済画面の取り消し（決済状況の確認とは別に数える）。超えると 429
+# 任意：同じ接続元が 1 種類につき取り置ける数（在庫数を入れた商品）。書かなければ 0＝上限なし。
+# 会場の Wi-Fi では大勢が同じ接続元になり、この数を全員で分け合うことになるため、イベントでは書かないでください。
+# 支払われない決済画面で在庫がふさがれるいたずらが見られたときだけ設定します（README の「在庫の取り置き」）
+# HOLD_PER_CLIENT = "20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mangetsumai"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+# 任意：商品画像を R2 に保存する場合（npx wrangler r2 bucket create mangetsumai-images）
+# [[r2_buckets]]
+# binding = "IMAGES"
+# bucket_name = "mangetsumai-images"
+
+# Webhook が届かなかった注文を 30 分ごとに Stripe に確認して確定・失効させる
+[triggers]
+crons = ["*/30 * * * *"]
+
+[observability]
+enabled = true

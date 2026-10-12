@@ -1,0 +1,19 @@
+{
+  "name": "mangetsumai-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "満月米 オンラインショップの注文・決済 API（Cloudflare Workers + D1 + Stripe Checkout）",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test --test-force-exit \"test/*.test.mjs\"",
+    "dev": "node dev/serve.mjs",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply mangetsumai --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
