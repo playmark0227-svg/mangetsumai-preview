@@ -1540,9 +1540,11 @@ ul, ol { padding: 0; list-style: none; }
 .pd__main img.is-cutout { top: 3%; bottom: auto; height: 91%; padding: 0 10%; }
 .pd__main img.is-flat { padding: 6%; }
 @media (max-width: 560px) {
-  /* wide 4:3 cards: the whole bag, with the tip of its long paper-string handle, stays inside the box
-     (a small margin at the top); its feet stay on the floor shadow, as in the square cards */
-  .p-card__visual .visual-img.is-cutout { top: 1%; height: 93%; }
+  /* wide 4:3 cards: the bag is as tall as the box allows. The tip of its long paper-string handle keeps a
+     small margin at the top (about 2.7% of the box), and its feet stand in the middle of the floor shadow.
+     The hover lift is smaller here, so the tip stays inside the box while the card is hovered or tapped */
+  .p-card__visual .visual-img.is-cutout { top: 0; height: 95%; }
+  .p-card:hover .p-card__visual .visual-img.is-cutout { transform: translateY(-3px) scale(1.01); }
   /* the flyer starts below the corner badge (14px + its height) */
   .p-card__visual .visual-img.is-flat { padding: 46px 7% 12px; }
 }

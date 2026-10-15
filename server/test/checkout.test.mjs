@@ -449,13 +449,13 @@ describe('event orders (source)', () => {
     assert.equal(o.sourceName, '');
     assert.equal(o.date, '10月30日（金）');
 
-    // the day after the end date, in Japan time (2027-01-26 00:30 JST)
-    now.set('2027-01-25T15:30:00Z');
+    // the day after the end date, in Japan time (2026-11-02 00:30 JST)
+    now.set('2026-11-01T15:30:00Z');
     r = await checkout(t, { source: 'takanawa' });
     o = (await orders(t)).find((x) => x.no === r.orderNo);
     assert.equal(o.source, '');
-    // still the last day in Japan (2027-01-25 23:30 JST)
-    now.set('2027-01-25T14:30:00Z');
+    // still the last day in Japan (2026-11-01 23:30 JST)
+    now.set('2026-11-01T14:30:00Z');
     r = await checkout(t, { source: 'takanawa' });
     o = (await orders(t)).find((x) => x.no === r.orderNo);
     assert.equal(o.source, 'takanawa');

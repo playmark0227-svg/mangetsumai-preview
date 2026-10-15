@@ -57,7 +57,7 @@ describe('core: event-only and 送料込み in priceCart', () => {
     assert.deepEqual(p.shipping.parcels.map((x) => x.kg), [5]);
     assert.equal(p.total, 9800 + 3600 + R.kanto[0]);
     // outside the event: only the event-only line is a problem
-    for (const today of ['2026-09-30', '2027-01-26']) {
+    for (const today of ['2026-09-30', '2026-11-02']) {
       p = Core.priceCart(cat, [set(1), shin5(1)], { today, pref: '東京都' });
       assert.deepEqual(p.problems, SET_ONLY, today);
       assert.deepEqual(p.lines.map((l) => l.pid), ['shinmai-r8']);
@@ -157,9 +157,9 @@ describe('event-only products at checkout', () => {
     assert.equal((await checkout(t, { items: [shin5(1)], customer: tokyo() })).res.status, 200);
     now.set('2026-09-30T15:00:00Z'); // 2026-10-01 00:00: the first day
     assert.equal((await checkout(t, { items: [set(1)], customer: tokyo() })).res.status, 200);
-    now.set('2027-01-25T14:59:00Z'); // 2027-01-25 23:59: the last day
+    now.set('2026-11-01T14:59:00Z'); // 2026-11-01 23:59: the last day
     assert.equal((await checkout(t, { items: [set(1)], customer: tokyo() })).res.status, 200);
-    now.set('2027-01-25T15:00:00Z'); // 2027-01-26 00:00: over
+    now.set('2026-11-01T15:00:00Z'); // 2026-11-02 00:00: over
     assert.deepEqual(await refused(t, { items: [set(1)], source: 'takanawa' }), SET_ONLY);
     await t.close();
   });
@@ -201,10 +201,10 @@ describe('the event ends while Stripe creates the session', () => {
   for (const [label, during] of [
     ['the end date saved in the admin', (t) => editCatalog(t, (c) => { c.settings.event.end = '2026-10-24'; })],
     ['taken off the event page in the admin', (t) => editCatalog(t, (c) => { c.settings.event.products = ['shinmai-r8']; })],
-    ['midnight after the last day', (t) => { t.now.set('2027-01-25T15:00:01Z'); }],
+    ['midnight after the last day', (t) => { t.now.set('2026-11-01T15:00:01Z'); }],
   ]) {
     test(`${label}: the new session is withdrawn and the shopper gets 409 event_only instead of its URL`, async () => {
-      const t = await setup({ now: clock(label.startsWith('midnight') ? '2027-01-25T14:59:59Z' : EVENT_DAY) });
+      const t = await setup({ now: clock(label.startsWith('midnight') ? '2026-11-01T14:59:59Z' : EVENT_DAY) });
       t.fake.beforeCreate(async () => { await during(t); });
       const r = await checkout(t, { items: [set(1), shin5(1)], customer: tokyo() });
       assert.equal(r.res.status, 409, JSON.stringify(r.res.json));
@@ -220,12 +220,12 @@ describe('the event ends while Stripe creates the session', () => {
 
 describe('paid after the event ended', () => {
   test('the payment is kept and the set is flagged unavailable (event_ended); other orders are not', async () => {
-    const now = clock('2027-01-25T14:50:00Z'); // 23:50 in Japan on the last day
+    const now = clock('2026-11-01T14:50:00Z'); // 23:50 in Japan on the last day
     const t = await setup({ now });
     const a = await checkout(t, { items: [set(1), shin5(1)], customer: tokyo() });
     const b = await checkout(t, { items: [shin5(1)], customer: tokyo() });
     assert.equal(a.res.status, 200);
-    now.set('2027-01-25T15:10:00Z'); // 00:10: the event is over, a's session is open until 00:22
+    now.set('2026-11-01T15:10:00Z'); // 00:10: the event is over, a's session is open until 00:22
     for (const r of [a, b]) assert.equal((await webhook(t, sessionEvent('checkout.session.completed', paid(r.session)))).status, 200);
     const oa = await byNo(t, a.orderNo);
     assert.equal(oa.payment, 'paid');
@@ -238,10 +238,10 @@ describe('paid after the event ended', () => {
   });
 
   test('paid in time, but the webhook (or the sweep) comes after the end: not flagged', async () => {
-    const now = clock('2027-01-25T14:00:00Z'); // 23:00 in Japan on the last day: the session can be paid until 23:32
+    const now = clock('2026-11-01T14:00:00Z'); // 23:00 in Japan on the last day: the session can be paid until 23:32
     const t = await setup({ now });
     const a = await checkout(t, { items: [set(1)], customer: tokyo() });
-    now.set('2027-01-26T03:00:00Z'); // the next day
+    now.set('2026-11-02T03:00:00Z'); // the next day
     assert.equal((await webhook(t, sessionEvent('checkout.session.completed', paid(a.session)))).status, 200);
     const o = await byNo(t, a.orderNo);
     assert.equal(o.payment, 'paid');

@@ -937,7 +937,7 @@
     visual: { kind: 'image', src: '', fit: 'cover' }, gallery: [],
     variants: [{ id: 'v1', label: '', price: '', stock: null, weight: 5 }],
     options: { gift: false, award: false, preorder: false, subscription: false, traits: false, eventOnly: false, shipIncluded: false },
-    specs: [['名称', ''], ['内容量', ''], ['賞味期限', ''], ['保存方法', ''], ['配送方法', '常温便'], ['生産者', '満月農園（北海道士別市上士別町）']],
+    specs: [['名称', ''], ['内容量', ''], ['賞味期限', ''], ['保存方法', ''], ['配送方法', 'ヤマト運輸または佐川急便（常温便）'], ['生産者', '満月農園（北海道士別市上士別町）']],
   });
 
   function renderEditor(id) {

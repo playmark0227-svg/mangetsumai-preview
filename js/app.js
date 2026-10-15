@@ -77,7 +77,7 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const smooth = () => (reduceMotion ? 'auto' : 'smooth');
   // keep a few words that phrase-breaking tends to split on one line
-  const NOBR = /(ななつぼし|おにぎり|召し上がる|2026年12月上旬)/g;
+  const NOBR = /(ななつぼし|おにぎり|召し上がる|2026年12月上旬|ほたてエレガンス|たこ燻製)/g;
   const jp = (s) => esc(s).replace(NOBR, '<span class="nw">$1</span>');
   const view = () => $('#view');
 
@@ -802,7 +802,7 @@
               ${p.specs.length ? `
               <div class="table-wrap">
                 <table class="spec-table"><tbody>
-                  ${p.specs.map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}
+                  ${p.specs.map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td>${jp(v)}</td></tr>`).join('')}
                 </tbody></table>
               </div>` : '<p class="pending">商品情報は準備中です。</p>'}
             </div>
@@ -2245,8 +2245,8 @@
     const inclNames = onSale().filter((p) => p.options.shipIncluded).map((p) => p.name);
     // event orders: from the event page, or with an event-only product
     const evOn = S.eventActive(s.event);
-    // event-only goods on sale now (北海道満喫セット): how they are shipped is not settled yet,
-    // so the guide only promises 常温便 for the rice while they are sold
+    // event-only goods on sale now (北海道満喫セット): the carrier is settled (ヤマト運輸 or 佐川急便, 2026-10-15)
+    // but not the temperature of the seafood, so the guide only promises 常温便 for the rice while they are sold
     const evGoods = [...new Set(onSale().filter((p) => p.options.eventOnly).map((p) => p.name))];
     const evKinds = ['イベントページからのご注文', evGoods.length ? 'イベント限定の商品を含むご注文' : ''].filter(Boolean);
     // 「Aと、B」「A、Bと、C」
@@ -2279,7 +2279,7 @@
                   <li><i>01</i><b>商品を選ぶ</b><span>内容量を選んで、カートに入れます。</span></li>
                   <li><i>02</i><b>お客様情報</b><span>お名前・ご住所・お届け先を入力します。</span></li>
                   <li><i>03</i><b>ご確認・お支払い</b><span>ご注文内容を確かめて注文を確定し、Stripeの決済画面からクレジットカードでお支払いいただきます。</span></li>
-                  <li><i>04</i><b>お届け</b><span>${evGoods.length ? 'K NEXT株式会社からお届けします<span class="nw">（お米は常温便）。</span>' : 'K NEXT株式会社から、常温便でお届けします。'}</span></li>
+                  <li><i>04</i><b>お届け</b><span>K NEXT株式会社から、<span class="nw">ヤマト運輸</span>または<span class="nw">佐川急便</span>でお届けします。</span></li>
                 </ol>
               </section>
               <section class="guide__sec" id="g-pay">
@@ -2296,7 +2296,7 @@
                 ${inclNames.length ? `<p class="guide__incl">${esc(inclNames.join('・'))}は送料込みの価格です。ほかの商品と一緒にご注文いただいた場合、送料はほかの商品の分だけかかります${s.ship.freeOver > 0 ? '（送料無料の金額にも、送料込みの商品は含みません）' : ''}。</p>` : ''}
                 ${rateTableHTML(s)}
                 <div class="table-wrap"><table class="spec-table"><tbody>
-                  <tr><th scope="row">配送方法</th><td>${evGoods.length ? `お米：常温便／${esc(evGoods.join('・'))}：${pend}` : '常温便'}</td></tr>
+                  <tr><th scope="row">配送方法</th><td>${evGoods.length ? `ヤマト運輸または佐川急便<br>お米：常温便／${esc(evGoods.join('・'))}の温度帯：${pend}` : 'ヤマト運輸または佐川急便（常温便）'}</td></tr>
                   <tr><th scope="row">発送時期</th><td>${sellsPreorder() ? '通常商品：ご購入いただいた順に、順次発送<br>予約商品：各商品ページに記載の時期に発送' : 'ご購入いただいた順に、順次発送'}${evOn && evWhen ? `<br>${evWhat}：${esc(evWhen)}` : ''}</td></tr>
                   <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます${sellsPreorder() || evOn ? `（${andList([sellsPreorder() ? '予約商品を含むご注文' : '', ...(evOn ? evKinds : [])])}は日付指定不可）` : ''}</td></tr>
                 </tbody></table></div>
