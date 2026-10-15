@@ -13,8 +13,9 @@
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const yen = (n) => Number(n || 0).toLocaleString('ja-JP');
-  const priceHTML = (n, { tax = true, from = false, per = '' } = {}) =>
-    `<span class="price"><span class="price__yen">¥</span>${yen(n)}${from ? '<span class="price__from">〜</span>' : ''}${tax ? '<span class="price__tax">税込</span>' : ''}${per ? `<span class="price__tax">／${per}</span>` : ''}</span>`;
+  // incl: 送料込みの商品 (the price includes shipping)
+  const priceHTML = (n, { tax = true, from = false, per = '', incl = false } = {}) =>
+    `<span class="price"><span class="price__yen">¥</span>${yen(n)}${from ? '<span class="price__from">〜</span>' : ''}${tax ? `<span class="price__tax">${incl ? '税込・送料込み' : '税込'}</span>` : ''}${per ? `<span class="price__tax">／${per}</span>` : ''}</span>`;
 
   const ICON_BAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8.5h11l-1 11.2a1.5 1.5 0 0 1-1.5 1.3H9a1.5 1.5 0 0 1-1.5-1.3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.3 8.5V7a2.7 2.7 0 0 1 5.4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
 
@@ -116,15 +117,54 @@
     return `<svg class="bag-art" viewBox="0 0 320 340" ${a11y} focusable="false">${defs}${inner}</svg>`;
   }
 
+  /* ---------- product images ----------
+     A "contain" image is either a cut-out photo (the real rice bag, transparent background), which stands on
+     the card's floor with a soft shadow, or an opaque picture (e.g. the event flyer), which lies on the card
+     like a print. Which one is known once the image has loaded (it is read at 16×16 for transparent pixels,
+     once per image, then remembered): until then it is kept invisible, so it never jumps. Images from another origin cannot be
+     read and keep the plain "contain" look.
+     Classes: is-cutout (+ is-tall for a single standing bag, whose floor shadow is narrower) | is-flat */
+  const kinds = new Map(); // src → classes ('' when unknown)
+  function readKind(img) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 16; c.height = 16;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(img, 0, 0, 16, 16);
+      const d = x.getImageData(0, 0, 16, 16).data;
+      for (let i = 3; i < d.length; i += 4) {
+        if (d[i] < 200) return img.naturalWidth < img.naturalHeight * 0.8 ? 'is-cutout is-tall' : 'is-cutout';
+      }
+      return 'is-flat';
+    } catch { return ''; }
+  }
+  document.addEventListener('load', (e) => {
+    const img = e.target;
+    if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-probe')) return;
+    const src = img.dataset.probe;
+    if (!kinds.has(src)) kinds.set(src, readKind(img));
+    if (kinds.get(src)) img.classList.add(...kinds.get(src).split(' '));
+    img.removeAttribute('data-probe');
+  }, true);
+  document.addEventListener('error', (e) => { if (e.target && e.target.tagName === 'IMG') e.target.removeAttribute('data-probe'); }, true);
+  function imgHTML(src, fit, alt) {
+    const url = asset(src);
+    let cls = `visual-img is-${fit === 'contain' ? 'contain' : 'cover'}`;
+    let probe = '';
+    if (fit === 'contain') {
+      if (!kinds.has(url)) probe = ` data-probe="${esc(url)}"`;
+      else if (kinds.get(url)) cls += ` ${kinds.get(url)}`;
+    }
+    return `<img class="${cls}" src="${esc(url)}" alt="${esc(alt || '')}" loading="lazy" decoding="async"${probe}>`;
+  }
+
   /* main visual of a product: rice-bag illustration or an image */
   function visualHTML(p, { title = '', alt = '' } = {}) {
     const v = p.visual || {};
-    if (v.kind === 'image' && v.src) {
-      return `<img class="visual-img is-${v.fit === 'contain' ? 'contain' : 'cover'}" src="${esc(asset(v.src))}" alt="${esc(alt)}" loading="lazy" decoding="async">`;
-    }
+    if (v.kind === 'image' && v.src) return imgHTML(v.src, v.fit, alt);
     return bagSVG(v.style, v.label, { title });
   }
-  const imageHTML = (g, alt = g.alt) => `<img class="visual-img is-${g.fit === 'contain' ? 'contain' : 'cover'}" src="${esc(asset(g.src))}" alt="${esc(alt || '')}" loading="lazy" decoding="async">`;
+  const imageHTML = (g, alt = g.alt) => imgHTML(g.src, g.fit, alt);
 
   /* stock wording for cards and product pages */
   function stockNote(p) {
@@ -148,6 +188,8 @@
       : p.badge && p.badge.text ? `<span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>` : '';
     let action;
     if (soldOut) action = '<button class="add-btn" type="button" disabled>売り切れ</button>';
+    // event-only goods outside the event (or no longer on its page)
+    else if (!S.eventSellable(p)) action = '<button class="add-btn" type="button" disabled>販売期間外</button>';
     else if (multi) action = `<a class="add-btn" href="${esc(link)}" ${preview ? 'tabindex="-1"' : ''} aria-label="${esc(p.name)}の内容を選んで購入">選んで購入</a>`;
     else action = `<button class="add-btn" type="button" ${preview ? 'tabindex="-1"' : `data-add="${esc(p.id)}" data-variant="${esc(p.variants[0].id)}"`} aria-label="${esc(p.name)}をカートに入れる">${ICON_BAG}カートに入れる</button>`;
     return `
@@ -160,7 +202,7 @@
           <p class="p-card__desc">${esc(p.card)}</p>
           <p class="p-card__when${when ? '' : ' is-empty'}">${esc(when) || '&nbsp;'}</p>
           <div class="p-card__foot">
-            ${S.productSoldOut(p) && !p.variants.length ? '' : priceHTML(S.minPrice(p), { from: multi, per: p.options.subscription ? '1回' : '' })}
+            ${S.productSoldOut(p) && !p.variants.length ? '' : priceHTML(S.minPrice(p), { from: multi, per: p.options.subscription ? '1回' : '', incl: p.options.shipIncluded })}
             ${action}
           </div>
         </div>

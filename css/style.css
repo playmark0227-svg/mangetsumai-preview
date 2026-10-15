@@ -982,7 +982,8 @@ ul, ol { padding: 0; list-style: none; }
 .pd__main svg { inset: 7%; width: 86%; height: 86%; }
 .pd__main img { object-fit: cover; }
 .pd__main img.is-contain { object-fit: contain; padding: 10%; }
-.pd__thumbs { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 10px; }
+/* five a row whatever the number of images (two images no longer make two huge thumbnails) */
+.pd__thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .pd__thumb {
   position: relative; aspect-ratio: 1; padding: 0; border: 0; cursor: pointer; overflow: hidden;
   background: radial-gradient(circle at 50% 40%, rgba(241, 209, 125, .16), transparent 64%), var(--night-700);
@@ -1154,6 +1155,7 @@ ul, ol { padding: 0; list-style: none; }
 .free-ship { font-family: var(--font-round); font-size: 12.5px; line-height: 1.7; color: var(--gold-300); padding: 10px 12px; background: rgba(229, 195, 140, .08); box-shadow: inset 0 0 0 1px rgba(208, 173, 109, .25); }
 .free-ship b { font-weight: 500; }
 .free-ship__bar { display: block; height: 3px; margin-top: 8px; background: rgba(208, 173, 109, .2); }
+.free-ship__note { display: block; margin-top: 2px; font-size: 11.5px; line-height: 1.6; letter-spacing: .02em; color: var(--text-dim); }
 .free-ship__bar i { display: block; height: 100%; background: var(--gold-300); transition: width .4s var(--ease); }
 
 .empty { display: grid; justify-items: center; gap: 18px; padding: 56px 12px; text-align: center; color: var(--text-dim); }
@@ -1512,6 +1514,52 @@ ul, ol { padding: 0; list-style: none; }
 .visual-img.is-contain { object-fit: contain; padding: 8%; }
 .p-card__visual .visual-img, .line__img .visual-img { position: absolute; inset: 0; }
 .p-card__visual .visual-img.is-cover { inset: 0; }
+
+/* "contain" images, told apart by ui.js once loaded (hidden until then, so they never jump):
+   is-cutout — a cut-out photo (the real rice bag) standing on the floor of its box, with a soft shadow;
+   is-flat   — an opaque picture (the event flyer) lying on the box like a print */
+.visual-img[data-probe] { opacity: 0; }
+.visual-img.is-cutout {
+  object-position: 50% 100%;
+  filter: drop-shadow(0 2px 2px rgba(6, 9, 13, .5)) drop-shadow(0 12px 14px rgba(6, 9, 13, .38));
+}
+.visual-img.is-flat { filter: drop-shadow(0 10px 18px rgba(6, 9, 13, .55)); }
+/* floor shadow under a standing bag (cards, product page) */
+.p-card__visual:has(> .is-cutout)::before, .pd__main:has(> .is-cutout)::before {
+  content: ""; position: absolute; left: 50%; bottom: 4.5%; width: 74%; height: 8%; transform: translateX(-50%);
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(5, 8, 12, .62), rgba(5, 8, 12, .25) 55%, rgba(5, 8, 12, 0));
+  pointer-events: none;
+}
+.p-card__visual:has(> .is-tall)::before, .pd__main:has(> .is-tall)::before { width: 50%; }
+/* the bag's feet are placed with top + height (shares of the box HEIGHT, like the floor shadow), not with
+   padding (a share of the width), so it stands on its shadow in square and 4:3 boxes alike.
+   Its bottom edge is 6% above the box's bottom */
+.p-card__visual .visual-img.is-cutout { top: 2%; bottom: auto; height: 92%; padding: 0 8%; transition: transform .5s var(--ease); }
+.p-card:hover .p-card__visual .visual-img.is-cutout { transform: translateY(-4px) scale(1.02); }
+.p-card__visual .visual-img.is-flat { padding: 7%; }
+.pd__main img.is-cutout { top: 3%; bottom: auto; height: 91%; padding: 0 10%; }
+.pd__main img.is-flat { padding: 6%; }
+@media (max-width: 560px) {
+  /* wide 4:3 cards: the whole bag, with the tip of its long paper-string handle, stays inside the box
+     (a small margin at the top); its feet stay on the floor shadow, as in the square cards */
+  .p-card__visual .visual-img.is-cutout { top: 1%; height: 93%; }
+  /* the flyer starts below the corner badge (14px + its height) */
+  .p-card__visual .visual-img.is-flat { padding: 46px 7% 12px; }
+}
+/* small boxes (cart lines, order panel, gallery thumbnails): the bag sits larger and lower, so the label
+   reads; the top of its long paper-string handle is cut off by the box */
+.line__img, .pd__thumb { overflow: hidden; }
+.line__img .visual-img.is-cutout, .pd__thumb img.is-cutout {
+  top: -18%; height: 118%; padding: 0 8% 7%;
+  filter: drop-shadow(0 2px 2px rgba(6, 9, 13, .5)) drop-shadow(0 5px 6px rgba(6, 9, 13, .35));
+}
+.line__img .visual-img.is-cutout:not(.is-tall), .pd__thumb img.is-cutout:not(.is-tall) { top: -8%; height: 108%; padding: 0 4% 6%; }
+/* a flyer (3:2) is shown whole on the same dark tile as the other lines (cropped, its corner ribbon
+   read 「イベ」) */
+.line__img .visual-img.is-flat, .pd__thumb img.is-flat {
+  object-fit: contain; padding: 6%;
+  filter: drop-shadow(0 2px 4px rgba(6, 9, 13, .55));
+}
 .spec--single { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
 .thanks__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 
@@ -1584,6 +1632,82 @@ ul, ol { padding: 0; list-style: none; }
   .event-banner__go { grid-column: 2; padding-bottom: 12px; margin-top: -8px; font-size: 12px; }
   .event-banner__img { grid-row: 1 / 3; }
 }
+/* with the event's offer (北海道満喫セット): a thumbnail of the flyer and the price */
+.event-banner--deal { grid-template-columns: 156px minmax(0, 1fr) auto; padding: 10px 20px 10px 10px; }
+/* the whole flyer, small (3:2) */
+.event-banner__img--flyer { position: relative; align-self: center; aspect-ratio: 3 / 2; background: var(--night-900); box-shadow: 0 0 0 1px rgba(208, 173, 109, .3); }
+.event-banner__img--flyer img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.event-banner__deal { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 4px; font-family: var(--font-round); font-size: 13px; letter-spacing: .06em; color: var(--text); line-height: 1.6; }
+.event-banner__name { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .08em; color: var(--gold-200); }
+.event-banner__price { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: .02em; color: var(--gold-300); font-variant-numeric: tabular-nums lining-nums; }
+.event-banner__price small { font-family: var(--font-round); font-weight: 400; font-size: 11.5px; letter-spacing: .04em; color: var(--text-dim); }
+.event-banner__tag { align-self: center; padding: 3px 8px 2px; font-size: 11px; letter-spacing: .12em; line-height: 1.4; color: var(--ink); background: var(--gold-300); }
+@media (max-width: 760px) {
+  .event-banner--deal { grid-template-columns: clamp(104px, 30vw, 132px) minmax(0, 1fr); padding: 0 14px 0 10px; gap: 4px 12px; }
+  .event-banner--deal .event-banner__img { grid-row: 1 / 3; align-self: start; margin-top: 12px; }
+  .event-banner--deal .event-banner__go { grid-column: 2; padding-bottom: 12px; margin-top: 0; font-size: 12px; }
+  .event-banner--deal .event-banner__text { padding-bottom: 0; }
+  .event-banner--deal .event-banner__text b { font-size: 15px; letter-spacing: .06em; }
+}
+
+/* the flyer at the top of the event page (client's material: 「画像はイメージです」) */
+.event-flyer { display: grid; gap: 8px; max-width: 960px; margin: 0 auto clamp(40px, 5vw, 64px); }
+.event-flyer img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px rgba(208, 173, 109, .35), 0 24px 48px rgba(6, 9, 13, .45); }
+.event-flyer .photo-note { text-align: right; color: var(--text-faint); }
+.event-sec + .product-grid + .event-steps { margin-top: clamp(40px, 5vw, 64px); }
+/* fewer cards are centred (data-count): the heading lines up with them */
+.event-sec:has(+ .product-grid[data-count="2"]) { max-width: 760px; margin-inline: auto; }
+.event-sec:has(+ .product-grid[data-count="1"]) { text-align: center; }
+
+/* the flyer together with the event's own offer (北海道満喫セット) and its purchase panel:
+   side by side on wide screens, the panel under the flyer below 1001px */
+.ev-feature {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: center;
+  gap: clamp(28px, 3vw, 44px);
+  margin-bottom: clamp(48px, 6vw, 80px); padding: clamp(14px, 1.8vw, 24px);
+  background: linear-gradient(180deg, rgba(40, 49, 61, .92), rgba(33, 42, 52, .92));
+  box-shadow: inset 0 0 0 1px var(--gold-400), 0 24px 48px rgba(6, 9, 13, .35);
+}
+.ev-feature__flyer { display: grid; gap: 8px; margin: 0; min-width: 0; }
+.ev-feature__flyer img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px rgba(208, 173, 109, .35), 0 16px 32px rgba(6, 9, 13, .4); }
+.ev-feature__flyer .photo-note { text-align: right; color: var(--text-faint); }
+.ev-feature__panel { display: grid; gap: 16px; align-content: center; min-width: 0; padding-right: clamp(4px, 1.2vw, 16px); }
+.ev-feature__badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ev-feature__name { font-family: var(--font-display); font-weight: 600; font-size: clamp(24px, 2.3vw, 30px); letter-spacing: .1em; line-height: 1.5; color: var(--rice); word-break: keep-all; overflow-wrap: anywhere; }
+.ev-feature__desc { font-size: 14px; line-height: 1.9; letter-spacing: .04em; color: var(--text); word-break: auto-phrase; }
+.ev-feature__price { padding-block: 14px; border-block: 1px solid rgba(208, 173, 109, .25); }
+.ev-feature__price .price { font-size: clamp(32px, 3vw, 38px); }
+.ev-feature__price .price__tax { font-size: 13px; }
+.ev-feature__ship { font-family: var(--font-round); font-size: 13px; line-height: 1.8; letter-spacing: .06em; color: var(--text-dim); word-break: auto-phrase; }
+.ev-feature__ship b { color: var(--gold-300); font-weight: 500; }
+/* the button takes the rest of the row, and moves under the stepper when the row is too narrow for it */
+.ev-feature__buy { display: flex; flex-wrap: wrap; gap: 12px; }
+.ev-feature__buy .qty { flex: none; }
+.ev-feature__buy .btn { --h: 50px; flex: 1 0 auto; padding-inline: 18px; }
+.ev-feature__more { font-family: var(--font-round); font-size: 13px; letter-spacing: .06em; }
+.ev-feature__more a { display: inline-flex; align-items: center; min-height: 36px; border-bottom: 0; }
+.ev-feature__more a::after { content: ""; width: 7px; height: 7px; margin-left: 8px; border: solid currentColor; border-width: 1px 1px 0 0; transform: rotate(45deg); }
+.ev-feature__more a:hover { color: var(--gold-200); }
+@media (max-width: 1000px) {
+  .ev-feature { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .ev-feature__panel { padding: 0 clamp(4px, 2vw, 16px) 6px; }
+}
+/* tablets: name and text on the left, price and delivery on the right, then the buttons across */
+@media (min-width: 640px) and (max-width: 1000px) {
+  .ev-feature__panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: clamp(24px, 4vw, 40px); align-items: start; }
+  .ev-feature__badges { grid-area: 1 / 1; }
+  .ev-feature__name { grid-area: 2 / 1; }
+  .ev-feature__desc { grid-area: 3 / 1; }
+  .ev-feature__price { grid-area: 1 / 2 / span 2; }
+  .ev-feature__ship { grid-area: 3 / 2; }
+  .ev-feature__buy, .ev-feature__more { grid-column: 1 / -1; }
+  .ev-feature__buy { margin-top: 4px; }
+}
+@media (max-width: 420px) {
+  .ev-feature { padding: 10px; }
+  .ev-feature__panel { gap: 14px; }
+  .ev-feature__buy .btn { padding-inline: 12px; letter-spacing: .06em; gap: 8px; }
+}
 
 .event-hero {
   position: relative; overflow: hidden;
@@ -1642,6 +1766,14 @@ html[data-mode="live"] [data-demo-only] { display: none !important; }
 .summary dd.summary__tbd { font-family: var(--font-round); font-weight: 400; font-size: 12.5px; letter-spacing: .04em; color: var(--text-dim); text-align: right; }
 .pay-total__tbd { font-size: 12.5px; color: var(--text-dim); text-align: right; letter-spacing: .04em; }
 .panel__note { font-family: var(--font-round); font-size: 13px; text-align: center; }
+/* 送料込みの商品 */
+.summary dd .summary__incl { font-family: var(--font-round); font-weight: 400; font-size: 11.5px; letter-spacing: .02em; color: var(--text-dim); }
+.summary-note { font-family: var(--font-round); font-size: 12px; line-height: 1.7; letter-spacing: .04em; color: var(--text-dim); word-break: auto-phrase; }
+.guide__sec .guide__incl { color: var(--gold-300); }
+/* event-only product outside its event: the reason takes the place of the buy box */
+.pd__closed { display: grid; justify-items: start; gap: 8px; }
+.pd__closed b { margin: 0; font-size: 15px; }
+.pd__closed .btn { margin-top: 6px; }
 @media (max-height: 720px) {
   .drawer__foot .ship-est__label small { display: none; }
 }

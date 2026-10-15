@@ -108,26 +108,107 @@
     return { p, v, g, unit, total: unit * l.qty };
   };
   // pref: destination prefecture. ship / total are null while it is unknown
+  // (an order of 送料込みの商品 only has no shipping to pay: its ship is 0 even before the prefecture is known).
+  // incl: names of the 送料込みの商品 in the cart. charged: 商品小計 of the goods that do pay shipping
+  // (the free-shipping line counts only these)
   const totals = (pref = estPref) => {
     const sub = cart.reduce((s, l) => s + lineInfo(l).total, 0);
     const count = cart.reduce((s, l) => s + l.qty, 0);
-    const quote = S.shippingFor(cart, pref, sub);
+    const quote = S.shippingFor(cart, pref);
     const ship = quote.fee;
-    return { sub, count, quote, ship, total: ship === null ? null : sub + ship };
+    const inclLines = cart.filter((l) => S.product(l.pid).options.shipIncluded);
+    const incl = [...new Set(inclLines.map((l) => S.product(l.pid).name))];
+    const charged = sub - inclLines.reduce((s, l) => s + lineInfo(l).total, 0);
+    return { sub, count, quote, ship, total: ship === null ? null : sub + ship, incl, charged };
   };
+  // every item in the order is 送料込み: no shipping at all
+  const allIncluded = (q) => q.included && !q.parcels.length;
   const preorderLines = () => cart.filter((l) => S.product(l.pid).options.preorder);
   const hasPreorder = () => preorderLines().length > 0;
   const mixedPreorder = () => hasPreorder() && cart.some((l) => !S.product(l.pid).options.preorder);
   const preorderShip = () => { const l = preorderLines()[0]; return l ? S.product(l.pid).ship : ''; };
+  // goods a shopper can buy now: the shop's own list, and event-only goods while their event is on
+  const onSale = () => S.visibleProducts().filter((p) => C.isListed(p) || S.eventSellable(p));
   // the guide mentions 予約商品 only while one is on sale
-  const sellsPreorder = () => S.visibleProducts().some((p) => p.options.preorder);
+  const sellsPreorder = () => onSale().some((p) => p.options.preorder);
   const variantName = (p, v) => (p.variants.length > 1 ? `${p.name} ${v.label}` : p.name);
+
+  /* ---------- event-only goods (イベント限定) ---------- */
+  // 「高輪のイベント」 from the event title (「高輪のイベントにご来場の皆さまへ」); 「イベント」 when it has no such words
+  const evName = (e = settings().event) => ((/^(.*?イベント)/.exec(e.title || '') || [])[1] || 'イベント');
+  const thisGoods = (p) => (p.category === 'set' ? 'このセット' : 'この商品');
+  // why an event-only product cannot be bought now (null when it can).
+  // 「終了しました」 only once the event's last day has passed. Before it starts, while the event page is
+  // turned off, or while the product is not on it yet: neutral wording (the start date only when it is
+  // on sale from then: the event is on and lists it). soon: it will be sold on the event's terms
+  function closedInfo(p) {
+    if (S.eventSellable(p)) return null;
+    const e = settings().event;
+    const today = S.today();
+    if (e.end && today > e.end) {
+      return { head: '販売期間は終了しました。', text: `${thisGoods(p)}は、${evName(e)}期間中だけの販売でした。満月米は、オンラインショップでいつでもご購入いただけます。` };
+    }
+    const soon = !!(e.enabled && e.start && today < e.start && e.products.includes(p.id));
+    return {
+      head: `${thisGoods(p)}は、${evName(e)}期間中だけご購入いただけます。`,
+      text: soon ? `${fmtDate(e.start)}から販売します。` : 'ただいまは、ご購入いただけません。満月米は、オンラインショップでいつでもご購入いただけます。',
+      soon,
+    };
+  }
+  const closedText = (names) => `${names.map((n) => `「${n}」`).join('')}は、イベント期間外のためご購入いただけません。カートから外しました。`;
+  // event-only goods that can no longer be bought (the event ended while the page was open) leave the cart.
+  // → the note for the shopper ('' when nothing changed)
+  function dropClosed() {
+    const gone = cart.filter((l) => !S.eventSellable(S.product(l.pid)));
+    if (!gone.length) return '';
+    cart = cart.filter((l) => !gone.includes(l));
+    saveCart();
+    if (!cart.length) keepOnlySession();
+    renderCount();
+    return closedText([...new Set(gone.map((l) => S.product(l.pid).name))]);
+  }
+  // an event-only product that can no longer be bought (S.loadCart leaves it out of the cart)
+  const closedGoods = (p) => S.isVisible(p) && p.options.eventOnly && !S.eventSellable(p);
+  // The cart was read again (at load, when the page is shown again, after another tab's change):
+  // event-only goods whose event ended meanwhile were left out by S.loadCart. The stored cart is updated
+  // (so they do not come back), and → the note for the shopper ('' when none).
+  // shown: the lines this page showed before reading it (they count even when storage no longer has them)
+  function closedInStore(shown = []) {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(S.KEYS.cart) || '[]'); } catch { raw = []; }
+    if (!Array.isArray(raw)) raw = [];
+    const of = (l) => l && S.product(l.pid);
+    const gone = [...raw, ...shown].map(of).filter((p) => closedGoods(p) && !cart.some((x) => x.pid === p.id));
+    if (!gone.length) return '';
+    if (raw.some((l) => closedGoods(of(l)))) saveCart();
+    return closedText([...new Set(gone.map((p) => p.name))]);
+  }
+  // tells the shopper about such goods, like closedToCart: the checkout screens go back to the cart page,
+  // which lists them; the cart page (and the thanks page, which is about a finished order) keeps them for
+  // the cart page; elsewhere a toast (the open drawer shows them itself: renderDrawer(note)).
+  // → true when the page moves to the cart page
+  function tellClosed(notes) {
+    notes = [].concat(notes).filter(Boolean);
+    if (!notes.length) return false;
+    const route = IS_SHOP ? currentRoute || '' : '';
+    if (/^checkout/.test(route)) {
+      if (route === 'checkout') { const f = $('#checkoutForm'); if (f) collect(f); }
+      closedNotes.push(...notes);
+      location.replace('#cart');
+      return true;
+    }
+    if (route === 'cart' || route === 'thanks') closedNotes.push(...notes);
+    else if ($('#cartDrawer').hidden) toast(notes.join(''));
+    return false;
+  }
 
   function addToCart(pid, vid, qty = 1, gift = 'none') {
     if (loadError) { toast('商品情報を読み込めなかったため、ただいまご注文いただけません。ページを開き直してください。'); return; }
     const p = S.product(pid);
     const v = p && p.variants.find((x) => x.id === vid);
     if (!S.isVisible(p) || !v || S.variantSoldOut(p, v)) { toast('申し訳ありません。この商品は売り切れです。'); return; }
+    const closed = closedInfo(p);
+    if (closed) { toast(`${closed.head}${closed.text.split('。')[0]}。`); return; }
     const cap = S.maxFor(p, v);
     const key = lineKey({ pid, vid, gift });
     const found = cart.find((l) => lineKey(l) === key);
@@ -231,6 +312,7 @@
       p.variants.length > 1 ? v.label : '',
       g.id !== 'none' ? `${g.label}（+¥${yen(giftFee(g))}）` : '',
       p.options.preorder ? `予約・${p.when || p.ship}` : '',
+      p.options.shipIncluded ? '送料込み' : '',
     ].filter(Boolean).join(' ／ ');
     return `
       <div class="line">
@@ -250,15 +332,22 @@
         <div class="line__price">${priceHTML(total, { tax: false })}</div>
       </div>`;
   }
-  // progress towards free shipping; only when the shop offers it (settings.ship.freeOver > 0)
-  function freeShipHTML(sub) {
+  // progress towards free shipping; only when the shop offers it (settings.ship.freeOver > 0).
+  // sub: 商品小計 of the goods that pay shipping (送料込みの商品 do not count).
+  // incl: names of the 送料込みの商品 in the cart: the line says they are left out, since the 商品小計
+  // shown below it includes them (the note under the totals names them)
+  function freeShipHTML(sub, incl = []) {
     const over = settings().ship.freeOver;
     if (!(over > 0)) return '';
     if (sub >= over) return `<p class="free-ship">送料無料でお届けします。<span class="free-ship__bar"><i style="width:100%"></i></span></p>`;
-    return `<p class="free-ship">送料無料まで、あと <b>¥${yen(over - sub)}</b> です。<span class="free-ship__bar"><i style="width:${Math.round((sub / over) * 100)}%"></i></span></p>`;
+    const note = incl.length ? '<small class="free-ship__note">送料込みの商品は、送料無料の金額に含みません。</small>' : '';
+    return `<p class="free-ship">送料無料まで、あと <b>¥${yen(over - sub)}</b> です。${note}<span class="free-ship__bar"><i style="width:${Math.round((sub / over) * 100)}%"></i></span></p>`;
   }
   // unknown: what to show for 送料 while the prefecture is not chosen yet.
   // Without a prefecture there is no total, so the big number is labelled 商品小計（送料別）.
+  // 送料込みの商品 together with goods that pay shipping: the fee is only for the others
+  const inclNoteHTML = (t) => (t.quote.included && t.quote.parcels.length
+    ? `<p class="summary-note">${esc(t.incl.join('・'))}は送料込みです。送料は、ほかの商品の分だけかかります。</p>` : '');
   function summaryHTML(t, { detail = false, unknown = 'お届け先により異なります' } = {}) {
     const q = t.quote;
     if (t.ship === null) {
@@ -266,18 +355,22 @@
       <dl class="summary">
         <div><dt>送料</dt><dd class="summary__tbd">${esc(unknown)}</dd></div>
         <div class="summary__total"><dt>商品小計<small>（税込・送料別）</small></dt><dd>${priceHTML(t.sub, { tax: false })}</dd></div>
-      </dl>`;
+      </dl>${inclNoteHTML(t)}`;
     }
     const parts = detail && !q.free && q.parcels.length > 1 ? `<small>${esc(parcelDetail(q))}</small>` : '';
+    // every item is 送料込み: no fee at all, whatever the prefecture
+    const fee = allIncluded(q) ? '¥0<small class="summary__incl">（送料込み）</small>' : t.ship === 0 ? '無料' : '¥' + yen(t.ship);
     // summary__sub: the row a short cart drawer leaves out (the 送料 row always stays)
     return `
       <dl class="summary">
         <div class="summary__sub"><dt>商品小計</dt><dd>¥${yen(t.sub)}</dd></div>
-        <div><dt>${esc(shipLabel(q))}${parts}</dt><dd>${t.ship === 0 ? '無料' : '¥' + yen(t.ship)}</dd></div>
+        <div><dt>${esc(allIncluded(q) ? '送料' : shipLabel(q))}${parts}</dt><dd>${fee}</dd></div>
         <div class="summary__total"><dt>合計（税込）</dt><dd>${priceHTML(t.total, { tax: false })}</dd></div>
-      </dl>`;
+      </dl>${inclNoteHTML(t)}`;
   }
-  // cart drawer / cart page: prefecture for the shipping estimate
+  // the fee in words (for screen readers)
+  const feeWords = (t) => (allIncluded(t.quote) ? '送料込みのため0円' : t.ship === 0 ? '無料' : `${yen(t.ship)}円`);
+  // cart drawer / cart page: prefecture for the shipping estimate (not shown when everything is 送料込み)
   const shipEstHTML = (id) => `
     <div class="ship-est">
       <label class="ship-est__label" for="${id}">送料の目安<small>お届け先の都道府県</small></label>
@@ -286,9 +379,10 @@
         ${PREFS.map((p) => `<option ${p === estPref ? 'selected' : ''}>${p}</option>`).join('')}
       </select>
     </div>`;
-  const sumHTML = (t) => `${freeShipHTML(t.sub)}${summaryHTML(t)}`;
+  // the free-shipping line counts only the goods that pay shipping (none: no line)
+  const sumHTML = (t) => `${t.quote.parcels.length ? freeShipHTML(t.charged, t.incl) : ''}${summaryHTML(t)}`;
   const estAnnounce = (t) => (t.ship === null ? '送料は、お届け先により異なります'
-    : `${estPref}へお届けする場合、送料は${t.ship === 0 ? '無料' : `${yen(t.ship)}円`}、合計は${yen(t.total)}円です`);
+    : `${estPref && !allIncluded(t.quote) ? `${estPref}へお届けする場合、` : ''}送料は${feeWords(t)}、合計は${yen(t.total)}円です`);
   // a new estimate prefecture: refresh every open estimate (drawer, cart page, the guide's 送料表) in place
   function onEstPref(sel) {
     setEstPref(sel.value);
@@ -307,16 +401,19 @@
       <p>${msg}</p>
       <a class="btn btn--line btn--sm" href="${shopHref('')}">商品一覧を見る</a>
     </div>`;
-  function renderDrawer() {
+  // note: event-only goods the cart lost when it was read again (closedInStore), shown with those dropped here
+  function renderDrawer(note = '') {
     if (!booted) {
       $('#drawerBody').innerHTML = '<div class="empty"><span class="empty__moon" aria-hidden="true"></span><p>読み込んでいます…</p></div>';
       $('#drawerFoot').innerHTML = '';
       return;
     }
+    const closed = [typeof note === 'string' ? note : '', dropClosed()].filter(Boolean).join('');
     const t = totals();
-    $('#drawerBody').innerHTML = cart.length ? preorderNotice() + cart.map(lineHTML).join('') : emptyHTML();
+    $('#drawerBody').innerHTML = (closed ? `<p class="notice notice--warn" role="alert">${esc(closed)}</p>` : '')
+      + (cart.length ? preorderNotice() + cart.map(lineHTML).join('') : emptyHTML());
     $('#drawerFoot').innerHTML = cart.length
-      ? `${shipEstHTML('shipPrefDrawer')}
+      ? `${allIncluded(t.quote) ? '' : shipEstHTML('shipPrefDrawer')}
          <div class="sum-block" data-sum>${sumHTML(t)}</div>
          <a class="btn btn--gold btn--block" href="${shopHref('checkout')}">ご購入手続きへ</a>
          <p class="drawer__links"><a href="${shopHref('cart')}">カートの詳細を見る</a></p>`
@@ -354,9 +451,10 @@
   function renderHome() {
     const grid = $('#productGrid');
     if (grid) {
-      const visible = S.visibleProducts();
-      const featured = visible.filter((p) => p.featured);
-      const list = (featured.length ? featured : visible).slice(0, 4);
+      // event-only goods are shown on the event page (and in the event banner above), not here
+      const listed = S.listedProducts();
+      const featured = listed.filter((p) => p.featured);
+      const list = (featured.length ? featured : listed).slice(0, 4);
       grid.innerHTML = list.map((p) => cardHTML(p, { href: itemHref })).join('');
       grid.dataset.count = String(list.length);
     }
@@ -365,7 +463,8 @@
       const n = settings().news;
       const target = n.link && S.product(n.link);
       news.hidden = !n.show || !n.text;
-      news.href = S.isVisible(target) ? itemHref(target.id) : shopHref('');
+      // an event-only product is linked only while it is on sale
+      news.href = S.isVisible(target) && (C.isListed(target) || S.eventSellable(target)) ? itemHref(target.id) : shopHref('');
       $('#heroNewsText').textContent = n.text;
     }
     $$('[data-ship-text]').forEach((el) => { el.textContent = shipText(); });
@@ -392,24 +491,115 @@
 
   /* ---------- 高輪 event (期間限定) ---------- */
   const fmtDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${+m[2]}月${+m[3]}日` : ''; };
+  // the event's own offers: event-only goods on its page that can be bought now (e.g. 北海道満喫セット)
+  const eventDeals = (e) => e.products.map((id) => S.product(id))
+    .filter((p) => S.isVisible(p) && p.options.eventOnly && S.eventSellable(p) && !S.productSoldOut(p));
+  // the built-in flyer also comes as a 768px copy (…-sm.webp)
+  const DEFAULT_FLYER = (C.DEFAULT_EVENT.banner && C.DEFAULT_EVENT.banner.src) || '';
+  const flyerSm = (src) => (src && src === DEFAULT_FLYER ? src.replace(/\.webp$/, '-sm.webp') : src);
+  const asset = window.MangetsuUI.asset;
   function eventBannerHTML() {
     const e = settings().event;
     if (!S.eventActive(e)) return '';
+    // the set (or another event-only offer) is featured with a thumbnail of the flyer
+    const deal = eventDeals(e)[0];
+    const thumb = deal && (e.banner ? e.banner.src : deal.visual.kind === 'image' ? deal.visual.src : '');
+    const price = deal && `¥${yen(S.minPrice(deal))}${deal.variants.length > 1 ? '〜' : ''}`;
     return `
-      <a class="event-banner" href="${esc(shopHref(e.slug))}">
-        <span class="event-banner__img" aria-hidden="true"></span>
+      <a class="event-banner${deal ? ' event-banner--deal' : ''}" href="${esc(shopHref(e.slug))}">
+        ${thumb ? `<span class="event-banner__img event-banner__img--flyer" aria-hidden="true"><img src="${esc(asset(flyerSm(thumb)))}" alt="" loading="lazy" decoding="async"></span>`
+          : '<span class="event-banner__img" aria-hidden="true"></span>'}
         <span class="event-banner__text">
           <small>${e.date ? `${esc(fmtDate(e.date))} 開催` : '期間限定'}</small>
           <b>${esc(e.title)}</b>
+          ${deal ? `<span class="event-banner__deal"><span class="event-banner__name">${esc(deal.name)}</span><span class="event-banner__price"><span class="nw">${price}</span><small>（税込${deal.options.shipIncluded ? '・送料込み' : ''}）</small></span><span class="event-banner__tag">イベント限定</span></span>` : ''}
         </span>
         <span class="event-banner__go">ご案内を見る<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
       </a>`;
+  }
+  // the event's flyer (settings.event.banner), shown big at the top of the event page.
+  // cls / sizes: the flyer inside the feature block (beside its purchase panel on wide screens)
+  function flyerHTML(e, { cls = 'event-flyer', sizes = '(max-width: 1040px) 92vw, 960px' } = {}) {
+    const b = e.banner;
+    if (!b || !b.src) return '';
+    const sm = flyerSm(b.src);
+    const img = sm !== b.src
+      ? `<img src="${esc(asset(sm))}" srcset="${esc(asset(sm))} 768w, ${esc(asset(b.src))} 1536w" sizes="${sizes}" width="1536" height="1024" alt="${esc(b.alt)}" decoding="async">`
+      : `<img src="${esc(asset(b.src))}" alt="${esc(b.alt)}" decoding="async">`;
+    return `<figure class="${cls}">${img}<figcaption class="photo-note">画像はイメージです</figcaption></figure>`;
+  }
+  // The event's own offer (北海道満喫セット) where the flyer is: one block of the flyer and a purchase panel,
+  // instead of the flyer and then the same flyer again on the set's card. Only with a flyer and an event-only
+  // product that can be bought now (eventDeals); otherwise the page keeps the flyer + cards layout.
+  // A product with several variants is chosen on its own page (like 「選んで購入」 on the cards)
+  function featureHTML(e, p) {
+    const multi = p.variants.length > 1;
+    const v = p.variants.find((x) => !S.variantSoldOut(p, x)) || p.variants[0];
+    const note = stockNote(p);
+    const badges = [
+      p.badge.text ? `<span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>` : '',
+      p.badge.text.includes('イベント限定') ? '' : '<span class="badge">イベント限定</span>',
+    ].join('');
+    const per = p.options.subscription ? '1回' : '';
+    const buy = multi
+      ? `<a class="btn btn--gold btn--block" href="${esc(itemHref(p.id))}" aria-label="${esc(p.name)}の内容を選んで購入">内容を選んで購入</a>`
+      : `
+          <div class="ev-feature__buy">
+            <div class="qty" role="group" aria-label="${esc(p.name)}の数量">
+              <button type="button" data-step="-1" aria-label="1つ減らす">−</button>
+              <output id="evQty">1</output>
+              <button type="button" data-step="1" aria-label="1つ増やす">＋</button>
+            </div>
+            <button class="btn btn--gold" type="submit" id="evBuyBtn" data-variant="${esc(v.id)}" aria-label="${esc(p.name)}をカートに入れる">${ICON_BAG}カートに入れる</button>
+          </div>`;
+    return `
+      <section class="ev-feature" aria-labelledby="evDealName">
+        ${flyerHTML(e, { cls: 'ev-feature__flyer', sizes: '(min-width: 1001px) 700px, 92vw' })}
+        <form class="ev-feature__panel" id="evBuy" data-pid="${esc(p.id)}" novalidate>
+          <div class="ev-feature__badges">${badges}${p.meta ? `<span class="p-card__meta">${esc(p.meta)}</span>` : ''}</div>
+          <h2 class="ev-feature__name" id="evDealName">${esc(p.name)}</h2>
+          ${p.card ? `<p class="ev-feature__desc">${jp(p.card)}</p>` : ''}
+          <div class="ev-feature__price">${priceHTML(S.minPrice(p), { from: multi, per, incl: p.options.shipIncluded })}</div>
+          <p class="ev-feature__ship">${esc(e.shipNote)}${note ? `　<b>${esc(note)}</b>` : ''}</p>
+          ${buy}
+          <p class="ev-feature__more"><a class="link" href="${esc(itemHref(p.id))}">${p.category === 'set' ? 'セット' : '商品'}の詳しい内容を見る</a></p>
+        </form>
+      </section>`;
+  }
+  // the feature block's quantity stepper and 「カートに入れる」 (the same addToCart as the product page)
+  function wireFeature(p) {
+    const form = $('#evBuy', view());
+    const btn = form && $('#evBuyBtn', form);
+    if (!btn) return;
+    const v = p.variants.find((x) => x.id === btn.dataset.variant) || p.variants[0];
+    let qty = 1;
+    const update = () => {
+      const cap = S.maxFor(p, v);
+      qty = Math.max(1, Math.min(qty, cap));
+      $('#evQty', form).textContent = qty;
+      $('[data-step="-1"]', form).setAttribute('aria-disabled', String(qty <= 1));
+      $('[data-step="1"]', form).setAttribute('aria-disabled', String(qty >= cap));
+    };
+    $$('[data-step]', form).forEach((b) => b.addEventListener('click', () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      qty = Math.max(1, Math.min(S.maxFor(p, v), qty + +b.dataset.step));
+      update();
+      announce(`数量 ${qty}`);
+    }));
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      addToCart(p.id, v.id, qty, 'none');
+      update();
+    });
+    update();
   }
   function renderEvent(e) {
     const active = S.eventActive(e);
     const before = e.enabled && e.start && S.today() < e.start;
     if (active && !new URLSearchParams(location.search).has('preview')) S.markEventVisit(e.slug);
-    const list = e.products.map((id) => S.product(id)).filter((p) => S.isVisible(p));
+    // the featured offer (with the flyer) is not listed again in the cards below
+    const deal = active && e.banner && e.banner.src ? eventDeals(e)[0] : null;
+    const list = e.products.map((id) => S.product(id)).filter((p) => S.isVisible(p) && !(deal && p.id === deal.id));
     view().innerHTML = `
       <section class="event-hero" aria-labelledby="evTitle">
         <div class="container">
@@ -423,14 +613,15 @@
       <div class="page-body">
         <div class="container">
           ${active ? `
+          ${deal ? featureHTML(e, deal) : flyerHTML(e)}
+          ${list.length ? `
+          <h2 class="event-sec">${deal ? 'あわせてご案内している商品' : 'イベントでご案内している商品'}</h2>
+          <div class="product-grid" data-count="${list.length}">${list.map((p) => cardHTML(p.options.preorder ? p : { ...p, when: '' }, { href: itemHref })).join('')}</div>` : ''}
           <ol class="event-steps" aria-label="ご注文の流れ">
             <li><span class="num">1</span><p><b>QRコードを読み込む</b><span>このページが開きます。</span></p></li>
-            <li><span class="num">2</span><p><b>お米を選んでご注文</b><span>スマートフォンから、そのままご注文いただけます。</span></p></li>
+            <li><span class="num">2</span><p><b>商品を選んでご注文</b><span>スマートフォンから、そのままご注文いただけます。</span></p></li>
             <li><span class="num">3</span><p><b>ご自宅にお届け</b><span>${esc(e.shipNote)}</span></p></li>
           </ol>
-          ${list.length ? `
-          <h2 class="event-sec">イベントでご案内しているお米</h2>
-          <div class="product-grid" data-count="${list.length}">${list.map((p) => cardHTML(p.options.preorder ? p : { ...p, when: '' }, { href: itemHref })).join('')}</div>` : ''}
           <p class="notice event-note"><b>お届けについて</b>${esc(e.shipNote)}重たいお米も、ご自宅まで直接お届けします。</p>
           <p class="event-more"><a class="btn btn--line" href="#">ほかの商品も見る</a></p>` : `
           <div class="empty">
@@ -440,6 +631,7 @@
           </div>`}
         </div>
       </div>`;
+    if (deal) wireFeature(deal);
   }
 
   /* =========================================================
@@ -447,7 +639,8 @@
      ========================================================= */
   let listSort = 'recommend';
   function renderList(catId) {
-    const all = S.visibleProducts();
+    // event-only goods (the set) are sold on the event page only: not in the list, the tabs or their counts
+    const all = S.listedProducts();
     const cats = S.catalog().categories.filter((c) => all.some((p) => p.category === c.id));
     const cat = catId ? cats.find((c) => c.id === catId) : null;
     let items = cat ? all.filter((p) => p.category === cat.id) : all.slice();
@@ -500,19 +693,37 @@
     const variants = p.variants;
     const firstAvail = variants.find((v) => !S.variantSoldOut(p, v)) || variants[0];
     const soldOut = S.productSoldOut(p);
+    // event-only goods outside their event: the reason instead of the buy box
+    const closed = !soldOut && closedInfo(p);
+    const blocked = soldOut || !!closed;
     const s = settings();
-    const vis = S.visibleProducts().filter((x) => x.id !== p.id);
+    const vis = S.listedProducts().filter((x) => x.id !== p.id);
     const others = [...vis.filter((x) => x.category === p.category), ...vis.filter((x) => x.category !== p.category)].slice(0, 3);
     const award = p.options.award
       ? '米-1グランプリ in らんこし 2025 <span class="nw">金賞受賞</span>'
       : p.options.traits ? '米-1グランプリ in らんこし 2025 <span class="nw">金賞受賞農園</span>' : '';
     const per = p.options.subscription ? '1回' : '';
+    const incl = p.options.shipIncluded;
+    const ev = s.event;
+    const evOnly = p.options.eventOnly;
     const cat = S.category(p.category);
     const note = stockNote(p);
-    const evShip = !p.options.preorder && eventOrder();
+    // event-only goods: the event's delivery terms only while they can be bought, or before the event
+    // that will sell them (soon). Outside that, no delivery promise at all (closed says why)
+    const evShip = !p.options.preorder && (evOnly ? (!closed || closed.soon ? ev : null) : eventOrder());
+    const shipShown = !evOnly || !closed || closed.soon;
+    // event-only goods belong to the event page, not to a category of the shop
+    const crumb = evOnly ? [['イベントのご案内', `#${ev.slug}`]] : cat ? [[cat.name, `#category-${cat.id}`]] : [];
+    const badges = [
+      soldOut ? '<span class="badge badge--soldout">売り切れ</span>' : p.badge.text ? `<span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>` : '',
+      evOnly && !soldOut && !p.badge.text.includes('イベント限定') ? '<span class="badge">イベント限定</span>' : '',
+    ].join('');
+    const shipLine = incl
+      ? 'この商品には送料がかかりません。' // 「送料込み」 is already in the price line
+      : `送料は、お届け先の地域と重さで決まります<span class="nw">（この商品1点：<span id="pdShipRange">${unitShipText(firstAvail)}</span>）</span>。${freeText(s)}<a class="link" href="#guide-ship">送料表を見る</a>`;
 
     view().innerHTML = `
-      ${pageHead(null, [['トップ', 'index.html'], ['オンラインショップ', '#'], ...(cat ? [[cat.name, `#category-${cat.id}`]] : []), [p.name]])}
+      ${pageHead(null, [['トップ', 'index.html'], ['オンラインショップ', '#'], ...crumb, [p.name]])}
       <div class="page-body">
         <div class="container">
           <div class="pd">
@@ -530,16 +741,21 @@
               <div class="pd__head">
                 ${award ? `<p class="pd__award">${award}</p>` : ''}
                 <div class="pd__badges">
-                  ${soldOut ? '<span class="badge badge--soldout">売り切れ</span>' : p.badge.text ? `<span class="badge${p.badge.line ? ' badge--line' : ''}">${esc(p.badge.text)}</span>` : ''}
+                  ${badges}
                   <span class="p-card__meta">${esc(p.meta)}</span>
                 </div>
                 <h1 class="pd__name" tabindex="-1" data-page-focus>${esc(p.name)}</h1>
               </div>
               <p class="pd__lead">${jp(p.lead)}</p>
-              <div class="pd__price" id="pdPrice">${priceHTML(firstAvail.price, { per })}</div>
-              <p class="pd__ship">${p.options.preorder ? '<b>予約商品</b>　' : ''}${esc(evShip ? evShip.shipNote : p.ship)}${note ? `　<b>${esc(note)}</b>` : ''}<br>送料は、お届け先の地域と重さで決まります<span class="nw">（この商品1点：<span id="pdShipRange">${unitShipText(firstAvail)}</span>）</span>。${freeText(s)}<a class="link" href="#guide-ship">送料表を見る</a></p>
+              <div class="pd__price" id="pdPrice">${priceHTML(firstAvail.price, { per, incl })}</div>
+              ${shipShown ? `<p class="pd__ship">${p.options.preorder ? '<b>予約商品</b>　' : ''}${esc(evShip ? evShip.shipNote : p.ship)}${note ? `　<b>${esc(note)}</b>` : ''}<br>${shipLine}</p>` : ''}
 
-              ${variants.length > 1 ? `
+              ${closed ? `
+              <div class="notice pd__closed" role="note">
+                <b>${esc(closed.head)}</b>
+                <span>${esc(closed.text)}</span>
+                <a class="btn btn--line btn--sm" href="#">オンラインショップへ</a>
+              </div>` : variants.length > 1 ? `
               <fieldset class="opt">
                 <legend>${p.options.subscription ? 'お届け周期・内容量' : '種類・内容量'}</legend>
                 <div class="chips">
@@ -548,7 +764,7 @@
                 </div>
               </fieldset>` : `<input type="hidden" name="variant" value="${esc(firstAvail.id)}">`}
 
-              ${p.options.gift && !soldOut ? `
+              ${p.options.gift && !blocked ? `
               <div class="field">
                 <label class="field__label" for="giftSel">ギフト包装・のし</label>
                 <select class="select" id="giftSel" name="gift">
@@ -556,6 +772,7 @@
                 </select>
               </div>` : ''}
 
+              ${closed ? '' : `
               <div class="field">
                 <span class="field__label" id="qtyLabel">数量</span>
                 <div class="pd__buy">
@@ -566,14 +783,14 @@
                   </div>
                   <button class="btn btn--gold" type="submit" id="buyBtn" ${soldOut ? 'disabled' : ''}>${soldOut ? '売り切れ' : `${ICON_BAG}${p.options.preorder ? '予約してカートに入れる' : 'カートに入れる'}`}</button>
                 </div>
-              </div>
+              </div>`}
               <p class="pd__sub">
                 <a href="#guide-ship"><span>送料・お届けについて</span></a>
               </p>
             </form>
           </div>
 
-          ${soldOut ? '' : `
+          ${blocked ? '' : `
           <div class="buybar" id="buyBar" hidden>
             <div id="buyBarPrice"></div>
             <button class="btn btn--gold" type="submit" form="buyForm">${ICON_BAG}${p.options.preorder ? '予約してカートへ' : 'カートに入れる'}</button>
@@ -615,10 +832,15 @@
       $('#pdMain').innerHTML = media(gallery[+b.dataset.thumb]);
       thumbs.forEach((t) => t.setAttribute('aria-pressed', String(t === b)));
     }));
-    if (soldOut) { $$('[data-step]', view()).forEach((b) => b.setAttribute('aria-disabled', 'true')); return; }
+    const form = $('#buyForm');
+    if (blocked) {
+      $$('[data-step]', view()).forEach((b) => b.setAttribute('aria-disabled', 'true'));
+      // nothing to submit (Enter in the form, or a stale buy bar)
+      form.addEventListener('submit', (e) => e.preventDefault());
+      return;
+    }
 
     // qty + price
-    const form = $('#buyForm');
     let qty = 1;
     const current = () => { const vid = new FormData(form).get('variant'); return variants.find((x) => x.id === vid) || firstAvail; };
     const update = () => {
@@ -628,9 +850,9 @@
       const g = giftOf(form.gift ? form.gift.value : 'none');
       const unit = v.price + giftFee(g);
       const notes = [qty > 1 ? `¥${yen(unit)} × ${qty}` : '', giftFee(g) ? `ギフト包装 ¥${yen(giftFee(g))} を含む` : ''].filter(Boolean).join('・');
-      $('#pdPrice').innerHTML = priceHTML(unit * qty, { per }) + (notes ? `<span class="price__tax">（${notes}）</span>` : '');
-      $('#buyBarPrice').innerHTML = priceHTML(unit * qty, { per });
-      $('#pdShipRange').textContent = unitShipText(v);
+      $('#pdPrice').innerHTML = priceHTML(unit * qty, { per, incl }) + (notes ? `<span class="price__tax">（${notes}）</span>` : '');
+      $('#buyBarPrice').innerHTML = priceHTML(unit * qty, { per, incl });
+      if ($('#pdShipRange')) $('#pdShipRange').textContent = unitShipText(v);
       $('#pdQty').textContent = qty;
       $('[data-step="-1"]', form).setAttribute('aria-disabled', String(qty <= 1));
       $('[data-step="1"]', form).setAttribute('aria-disabled', String(qty >= cap));
@@ -661,12 +883,19 @@
   /* ---------- cart page ---------- */
   // live mode: what changed when the server refused the cart (cart_changed). Shown once on #cart.
   let cartNotice = null;
+  // event-only goods taken out of the cart because their event is over: told once, on #cart
+  let closedNotes = [];
   function renderCart() {
+    const closed = dropClosed();
+    if (closed) closedNotes.push(closed);
+    // kept with the other changes while the shopper stays on #cart
+    if (closedNotes.length) { cartNotice = [...new Set([...(cartNotice || []), ...closedNotes])]; closedNotes = []; }
+    const notes = cartNotice || [];
     const t = totals();
-    const changed = cartNotice && cartNotice.length ? `
+    const changed = notes.length ? `
           <div class="notice notice--warn cart-changed" role="alert">
             <b>在庫や販売状況が変わったため、カートの内容を変更しました</b>
-            <ul>${cartNotice.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+            <ul>${notes.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
             ${cart.length ? '<span>内容をご確認のうえ、もう一度ご購入手続きへお進みください。</span>' : ''}
           </div>` : '';
     view().innerHTML = `
@@ -681,7 +910,7 @@
             </div>
             <aside class="panel" aria-label="ご注文金額">
               <p class="panel__title">ご注文金額</p>
-              ${shipEstHTML('shipPrefCart')}
+              ${allIncluded(t.quote) ? '' : shipEstHTML('shipPrefCart')}
               <div class="sum-block" data-sum>${sumHTML(t)}</div>
               <a class="btn btn--gold btn--block" href="#checkout">ご購入手続きへ</a>
               <p class="panel__note"><a class="link" href="#guide-ship">地域別の送料表</a></p>
@@ -755,7 +984,7 @@
         <p class="panel__title">ご注文内容</p>
         <div>${cart.map((l) => { const { p, v, g, total } = lineInfo(l); return `
           <div class="mini-line"><span class="line__img" aria-hidden="true">${visualHTML(p)}</span>
-          <span class="mini-line__name">${esc(p.name)}<small>${[p.variants.length > 1 ? v.label : '', g.id !== 'none' ? g.label : ''].filter(Boolean).map(esc).join('／')} <span class="nw">× ${l.qty}</span></small></span>
+          <span class="mini-line__name">${esc(p.name)}<small>${[p.variants.length > 1 ? v.label : '', g.id !== 'none' ? g.label : '', p.options.shipIncluded ? '送料込み' : ''].filter(Boolean).map(esc).join('／')} <span class="nw">× ${l.qty}</span></small></span>
           ${priceHTML(total, { tax: false })}</div>`; }).join('')}
         </div>
         <div class="sum-block" id="orderSum">${summaryHTML(t, { detail: true, unknown: CHECKOUT_UNKNOWN })}</div>
@@ -777,13 +1006,16 @@
     const pt = $('#payTotal');
     if (pt) pt.outerHTML = payTotal(t);
     announce(t.ship === null ? '送料は、お届け先の都道府県を選ぶと表示されます'
-      : `${pref}へお届けする場合、送料は${t.ship === 0 ? '無料' : `${yen(t.ship)}円`}、お支払い合計は${yen(t.total)}円です`);
+      : `${pref && !allIncluded(t.quote) ? `${pref}へお届けする場合、` : ''}送料は${feeWords(t)}、お支払い合計は${yen(t.total)}円です`);
   }
-  // orders placed after arriving from the event page (QR code at the venue)
+  // event orders: placed after arriving from the event page (QR code at the venue), or holding an
+  // event-only product (北海道満喫セット). They ship as the event says (shipNote), with no delivery date.
   const eventOrder = () => {
-    const src = S.eventSource();
     const e = settings().event;
-    return src && e && e.slug === src && S.eventActive(e) ? e : null;
+    if (!e || !S.eventActive(e)) return null;
+    if (cart.some((l) => { const p = S.product(l.pid); return p && p.options.eventOnly; })) return e;
+    const src = S.eventSource();
+    return src && e.slug === src ? e : null;
   };
 
   // live mode: ordering is blocked while the catalog could not be loaded
@@ -795,7 +1027,16 @@
       </div>
     </div></div>`;
 
+  // event-only goods whose event is over leave the cart: the cart page says so (→ true)
+  function closedToCart() {
+    const closed = dropClosed();
+    if (!closed) return false;
+    closedNotes.push(closed);
+    location.replace('#cart');
+    return true;
+  }
   function renderCheckout() {
+    if (closedToCart()) return;
     if (!cart.length) {
       view().innerHTML = `${pageHead('ご購入手続き', [['トップ', 'index.html'], ['オンラインショップ', '#'], ['ご購入手続き']])}<div class="page-body"><div class="container">${emptyHTML()}</div></div>`;
       return;
@@ -989,6 +1230,7 @@
   // 〒8100001 → 〒810-0001 (display only; the form keeps what was entered)
   const zipText = (z) => { const d = String(z || '').replace(/-/g, ''); return /^\d{7}$/.test(d) ? `${d.slice(0, 3)}-${d.slice(3)}` : String(z || ''); };
   function renderConfirm() {
+    if (closedToCart()) return;
     if (!cart.length) { location.replace('#cart'); return; }
     if (!draft.ok) { location.replace('#checkout'); return; }
     if (loadError) { view().innerHTML = blockedHTML('ご注文内容の確認'); return; }
@@ -1042,6 +1284,8 @@
   // 注文を確定する (and もう一度注文する after a duplicate_paid question: confirmDuplicate)
   function startPlace(opts = {}) {
     if (placing || !cart.length || !draft.ok) return;
+    // the event ended while the confirm page was open
+    if (closedToCart()) return;
     placing = true;
     removeDupAsk();
     const btn = $('#placeOrder');
@@ -1077,7 +1321,11 @@
       shipTo: draft.giftTo ? { name: draft.sname, zip: draft.szip, address: `${draft.spref}${draft.saddr1}${draft.saddr2 ? ' ' + draft.saddr2 : ''}`, tel: draft.stel } : null,
       items: cart.map((l) => { const { p, v, g, unit, total } = lineInfo(l); return { pid: p.id, vid: v.id, name: p.name, variant: p.variants.length > 1 ? v.label : '', gift: g.id !== 'none' ? g.label : '', qty: l.qty, unit, total }; }),
       subtotal: t.sub, ship: t.ship,
-      shipDetail: { region: q.region ? q.region.name : '', parcels: q.parcels.map((x) => ({ kg: x.kg, fee: x.fee })) },
+      // the same as the server's order (server/src/orders.js): included only when the order has 送料込みの商品
+      shipDetail: {
+        region: q.region ? q.region.name : '', parcels: q.parcels.map((x) => ({ kg: x.kg, fee: x.fee })), free: q.free,
+        ...(q.included ? { included: true } : {}),
+      },
       total: t.total,
       source: ev ? ev.slug : '', sourceName: ev ? ev.title : '',
       pay: pay.label, date: pre || ev ? '' : draft.date || '', time: draft.time || '', noshi: draft.noshiName || '', memo: draft.memo || '',
@@ -1387,12 +1635,17 @@
   // → true when it changed
   function resyncCart() {
     if (!booted || !cartStored) return false; // storage that could not keep the cart has nothing newer
+    const shown = cart;
     const before = JSON.stringify(cart);
     const seen = seenPaidAt;
     loadCart();
-    if (JSON.stringify(cart) === before) return false;
+    // event-only goods whose event ended while the page was hidden: left out by S.loadCart, and told
+    const closed = closedInStore(shown);
+    if (JSON.stringify(cart) === before && !closed) return false;
     renderCount();
-    if (!$('#cartDrawer').hidden) renderDrawer();
+    if (!$('#cartDrawer').hidden) renderDrawer(closed);
+    // the checkout screens go back to the cart page, which lists them
+    if (tellClosed(closed)) return true;
     if (!IS_SHOP) return true;
     // emptied by an order paid meanwhile: the cart page (no extra route change, which would hide the note)
     const paidSince = LIVE && !cart.length && paidAt() > seen;
@@ -1409,10 +1662,14 @@
   const CART_SYNCED = 'ほかの画面でカートの内容が変わったため、最新の内容を表示しています。ご注文内容をご確認のうえ、もう一度「注文を確定する」を押してください。';
   function onStaleCart() {
     const paidSince = paidAt() > seenPaidAt;
+    const shown = cart;
     loadCart();
+    const closed = closedInStore(shown);
     placing = false;
     renderCount();
     if (!$('#cartDrawer').hidden) renderDrawer();
+    // event-only goods whose event ended: the cart page lists them
+    if (closed) { closedNotes.push(closed); location.replace('#cart'); return; }
     if (!cart.length) {
       // the route change hides toasts: show it after
       if (paidSince) window.addEventListener('hashchange', () => toast(PAID_SINCE), { once: true });
@@ -1775,6 +2032,10 @@
       if ((it.code === 'stock' || it.code === 'qty') && max >= 1) {
         hit.forEach((l) => { l.qty = Math.min(l.qty, max); });
         notes.push(`「${name}」は、${it.code === 'stock' ? '在庫' : '1回のご注文でお求めいただける数'}に合わせて、数量を${max}点にしました。`);
+      } else if (it.code === 'event_only') {
+        // an event-only product outside its event (the server goes by Japan time)
+        cart = cart.filter((l) => !hit.includes(l));
+        notes.push(closedText([name]));
       } else {
         cart = cart.filter((l) => !hit.includes(l));
         notes.push(`「${name}」は、${it.code === 'sold_out' ? '売り切れの' : '販売を終了した'}ため、カートから外しました。`);
@@ -1804,6 +2065,10 @@
       else {
         saveCart(saved.cart);
         loadCart();
+        // event-only goods whose event ended while the shopper was on the Stripe page stay out (also in
+        // storage): the cart page lists them
+        const closed = closedInStore();
+        if (closed) closedNotes.push(closed);
       }
     }
     // the saved cart is used once: a cart the shopper empties afterwards stays empty.
@@ -1858,6 +2123,8 @@
       // the paid session is never closed; another one still open in this tab (unusual) stays saved
       keepOnlySession();
       cart = []; draft = {};
+      // goods taken out at load because their event ended were in this paid order: nothing to tell
+      closedNotes = [];
       saveCart();
       renderCount();
       if (!$('#cartDrawer').hidden) renderDrawer();
@@ -1974,6 +2241,24 @@
   function renderGuide() {
     const pend = '<span class="pending">（準備中）</span>';
     const s = settings();
+    // 送料込みの商品 on sale now (e.g. 北海道満喫セット during the event)
+    const inclNames = onSale().filter((p) => p.options.shipIncluded).map((p) => p.name);
+    // event orders: from the event page, or with an event-only product
+    const evOn = S.eventActive(s.event);
+    // event-only goods on sale now (北海道満喫セット): how they are shipped is not settled yet,
+    // so the guide only promises 常温便 for the rice while they are sold
+    const evGoods = [...new Set(onSale().filter((p) => p.options.eventOnly).map((p) => p.name))];
+    const evKinds = ['イベントページからのご注文', evGoods.length ? 'イベント限定の商品を含むご注文' : ''].filter(Boolean);
+    // 「Aと、B」「A、Bと、C」
+    const andList = (xs) => { xs = xs.filter(Boolean); return xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join('、')}と、${xs[xs.length - 1]}`; };
+    const evWhat = andList(evKinds);
+    // the event's shipNote without its own 「イベントでのご注文は、」 (the label already says which orders),
+    // and without the closing 「。」 like the other lines of the cell
+    const evWhen = (() => {
+      const n = String(s.event.shipNote || '').trim();
+      const body = n.replace(/^[^、。]*ご注文(?:分)?は、/, '').replace(/。$/, '');
+      return body || n.replace(/。$/, '');
+    })();
     view().innerHTML = `
       ${pageHead('ご利用ガイド', [['トップ', 'index.html'], ['オンラインショップ', '#'], ['ご利用ガイド']])}
       <div class="page-body">
@@ -1994,7 +2279,7 @@
                   <li><i>01</i><b>商品を選ぶ</b><span>内容量を選んで、カートに入れます。</span></li>
                   <li><i>02</i><b>お客様情報</b><span>お名前・ご住所・お届け先を入力します。</span></li>
                   <li><i>03</i><b>ご確認・お支払い</b><span>ご注文内容を確かめて注文を確定し、Stripeの決済画面からクレジットカードでお支払いいただきます。</span></li>
-                  <li><i>04</i><b>お届け</b><span>K NEXT株式会社から、常温便でお届けします。</span></li>
+                  <li><i>04</i><b>お届け</b><span>${evGoods.length ? 'K NEXT株式会社からお届けします<span class="nw">（お米は常温便）。</span>' : 'K NEXT株式会社から、常温便でお届けします。'}</span></li>
                 </ol>
               </section>
               <section class="guide__sec" id="g-pay">
@@ -2008,11 +2293,12 @@
                 <p>送料は、お届け先の地域と荷物の重さで決まります（税込）。1箱30kgまでお届けし、30kgを超える場合は複数の箱に分けてお届けします。その場合の送料は、箱ごとの送料の合計です。</p>
                 <p class="guide__example">例：5kgの袋を2つなら、1箱（10kgまで）の送料です。30kgの袋と5kgの袋なら、2箱（30kgまで＋5kgまで）の送料の合計です。</p>
                 ${freeText(s) ? `<p class="guide__free">${esc(freeText(s))}</p>` : ''}
+                ${inclNames.length ? `<p class="guide__incl">${esc(inclNames.join('・'))}は送料込みの価格です。ほかの商品と一緒にご注文いただいた場合、送料はほかの商品の分だけかかります${s.ship.freeOver > 0 ? '（送料無料の金額にも、送料込みの商品は含みません）' : ''}。</p>` : ''}
                 ${rateTableHTML(s)}
                 <div class="table-wrap"><table class="spec-table"><tbody>
-                  <tr><th scope="row">配送方法</th><td>常温便</td></tr>
-                  <tr><th scope="row">発送時期</th><td>${sellsPreorder() ? '通常商品：ご購入いただいた順に、順次発送<br>予約商品：各商品ページに記載の時期に発送' : 'ご購入いただいた順に、順次発送'}${S.eventActive(s.event) ? `<br>イベントページからのご注文：${esc(s.event.shipNote)}` : ''}</td></tr>
-                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます${sellsPreorder() || S.eventActive(s.event) ? `（${[sellsPreorder() ? '予約商品を含むご注文' : '', S.eventActive(s.event) ? 'イベントページからのご注文' : ''].filter(Boolean).join('・')}は日付指定不可）` : ''}</td></tr>
+                  <tr><th scope="row">配送方法</th><td>${evGoods.length ? `お米：常温便／${esc(evGoods.join('・'))}：${pend}` : '常温便'}</td></tr>
+                  <tr><th scope="row">発送時期</th><td>${sellsPreorder() ? '通常商品：ご購入いただいた順に、順次発送<br>予約商品：各商品ページに記載の時期に発送' : 'ご購入いただいた順に、順次発送'}${evOn && evWhen ? `<br>${evWhat}：${esc(evWhen)}` : ''}</td></tr>
+                  <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます${sellsPreorder() || evOn ? `（${andList([sellsPreorder() ? '予約商品を含むご注文' : '', ...(evOn ? evKinds : [])])}は日付指定不可）` : ''}</td></tr>
                 </tbody></table></div>
               </section>
               <section class="guide__sec" id="g-return">
@@ -2028,7 +2314,7 @@
                   <tr><th scope="row">電話番号</th><td>${pend}</td></tr>
                   <tr><th scope="row">メールアドレス</th><td>${pend}</td></tr>
                   <tr><th scope="row">販売価格</th><td>各商品ページに税込価格で表示しています</td></tr>
-                  <tr><th scope="row">商品代金以外の費用</th><td>送料（お届け先の地域と重さにより異なります。「送料・お届け」をご覧ください）</td></tr>
+                  <tr><th scope="row">商品代金以外の費用</th><td>送料（お届け先の地域と重さにより異なります。${inclNames.length ? '送料込みの商品は、価格に送料を含みます。' : ''}「送料・お届け」をご覧ください）</td></tr>
                   <tr><th scope="row">お支払い方法</th><td>クレジットカード（Stripeによる決済）</td></tr>
                   <tr><th scope="row">お支払い時期</th><td>ご注文の確定時</td></tr>
                   <tr><th scope="row">引き渡し時期</th><td>「送料・お届け」をご覧ください</td></tr>
@@ -2100,7 +2386,7 @@
     } else {
       const cat = id.startsWith('category-') ? id.slice(9) : '';
       const c = cat && S.category(cat);
-      const shown = !!c && S.visibleProducts().some((x) => x.category === c.id);
+      const shown = !!c && S.listedProducts().some((x) => x.category === c.id);
       renderList(shown ? cat : '');
       document.title = shown ? `${c.name}｜${SITE}` : SITE;
       currentRoute = shown ? id : 'list';
@@ -2274,13 +2560,17 @@
     if (!booted || key === S.KEYS.orders) return;
     const before = cart;
     loadCart();
+    // event-only goods whose event the shop closed (or that left its page): told by name, like closedToCart
+    const closed = closedInStore(before);
+    const notes = [closed];
     if (key !== S.KEYS.cart && before.length) {
-      const lost = before.some((l) => !cart.some((x) => lineKey(x) === lineKey(l)));
+      const lost = before.some((l) => !cart.some((x) => lineKey(x) === lineKey(l)) && !closedGoods(S.product(l.pid)));
       const cut = before.some((l) => { const x = cart.find((y) => lineKey(y) === lineKey(l)); return x && x.qty < l.qty; });
-      if (lost || cut) { saveCart(); toast(lost ? '販売を終了した商品・売り切れの商品を、カートから外しました。' : '在庫に合わせて、カートの数量を変更しました。'); }
+      if (lost || cut) { saveCart(); notes.push(lost ? '販売を終了した商品・売り切れの商品を、カートから外しました。' : '在庫に合わせて、カートの数量を変更しました。'); }
     }
     renderCount();
-    if (!$('#cartDrawer').hidden) renderDrawer();
+    if (!$('#cartDrawer').hidden) renderDrawer(closed ? notes.filter(Boolean).join('') : '');
+    if (closed) { if (tellClosed(notes)) return; } else if (notes[1]) toast(notes[1]);
     if (!IS_SHOP) { renderHome(); return; }
     // another tab's cart edit only matters on the cart / checkout screens
     if (key === S.KEYS.cart && !/^(cart|checkout)/.test(currentRoute || '')) return;
@@ -2473,16 +2763,32 @@
     loadCart();
     booted = true;
     const note = returnFromStripe();
+    // event-only goods left in the saved cart after their event ended (S.loadCart leaves them out): the
+    // stored cart is updated, and the shopper is told once. Read after returnFromStripe, which may put back
+    // the cart of a canceled payment (restoreCheckout notes those itself). On the return from a payment
+    // (#thanks) nothing is shown: its thanks page must not say the set was taken out, and a paid order
+    // empties the cart and forgets the note (paymentDone)
+    const c = closedInStore();
+    if (c) closedNotes.push(c);
+    const closed = [...new Set(closedNotes)].join('');
+    // on the checkout screens: the cart page lists them instead, as when the event ends during checkout
+    // (no extra route change, which would hide the note)
+    if (IS_SHOP && closed && /^checkout/.test(hashId())) history.replaceState(history.state, '', `${location.pathname}${location.search}#cart`);
     renderCount();
     if (!$('#cartDrawer').hidden) renderDrawer();
     if (IS_SHOP) {
       window.addEventListener('hashchange', onHashChange);
-      onHashChange();
+      onHashChange(); // the cart page lists closedNotes
     } else {
       renderHome();
     }
     if (loadError) showLoadError();
-    if (note) toast(note);
+    // elsewhere than the cart page: a toast instead (the thanks page keeps them for the cart page)
+    const onCart = IS_SHOP && currentRoute === 'cart';
+    const onThanks = IS_SHOP && currentRoute === 'thanks';
+    if (IS_SHOP && !onCart && !onThanks) closedNotes = [];
+    const msg = [note, onCart || onThanks ? '' : closed].filter(Boolean).join('');
+    if (msg) toast(msg);
     // Stripe pages other tabs opened: paid there without coming back? (not while this tab checks its own)
     checkListed();
   });

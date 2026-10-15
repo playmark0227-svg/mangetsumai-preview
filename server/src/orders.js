@@ -67,6 +67,7 @@ export function sameOrderKey(value, lines) {
 
 // the ORDER RECORD (same shape as the demo's orders in the admin, plus payment fields)
 // value: validated checkout body; priced: Core.priceCart result; event: the active event or null
+// (checkout.js passes it for an order from the event page, and for any order with an event-only product)
 export function buildOrder({ value, priced, event, at }) {
   const c = value.customer;
   const s = value.shipTo;
@@ -85,7 +86,12 @@ export function buildOrder({ value, priced, event, at }) {
     items: lines.map((l) => ({ pid: l.pid, vid: l.vid, name: l.name, variant: l.variant, gift: '', qty: l.qty, unit: l.unit, total: l.total })),
     subtotal: priced.sub,
     ship: sh.fee,
-    shipDetail: { region: sh.region ? sh.region.name : '', parcels: sh.parcels.map((p) => ({ kg: p.kg, fee: p.fee })), free: sh.free },
+    // included: the order has 送料込みの商品 (their shipping is in their price; they are not in parcels).
+    // Only when there are some
+    shipDetail: {
+      region: sh.region ? sh.region.name : '', parcels: sh.parcels.map((p) => ({ kg: p.kg, fee: p.fee })), free: sh.free,
+      ...(sh.included ? { included: true } : {}),
+    },
     total: priced.total,
     source: event ? event.slug : '',
     sourceName: event ? event.title : '',
@@ -160,24 +166,28 @@ function takeStock(catalog, items) {
 }
 
 // items that were no longer for sale when the payment came in: the shop owner set the product
-// to 売り切れ or 非公開, or deleted it (or the variant), while the shopper was on Stripe's page.
+// to 売り切れ or 非公開, or deleted it (or the variant), while the shopper was on Stripe's page,
+// or an event-only product's event ended (its end date passed, it was turned off, or the product
+// was taken off the event page: 'event_ended'). today: the Japan date of the payment.
 // The payment is kept (money was taken); the order is flagged for the admin.
 // (Stock that ran out is recorded as stockShort instead.)
-function unavailableItems(catalog, items) {
+function unavailableItems(catalog, items, today) {
   const out = [];
   for (const it of items) {
     const { p, v } = findItem(catalog, it);
-    const reason = !p || !v ? 'deleted' : p.status === 'draft' ? 'draft' : p.status === 'soldout' ? 'soldout' : '';
+    const reason = !p || !v ? 'deleted' : p.status === 'draft' ? 'draft' : p.status === 'soldout' ? 'soldout'
+      : !Core.eventSellable(catalog.settings, p, today) ? 'event_ended' : '';
     if (reason) out.push({ pid: it.pid, vid: it.vid, name: itemName(it), reason });
   }
   return out;
 }
 
-// an order item that can no longer be bought with `catalog`: 売り切れ, 非公開, deleted, or managed
-// stock at 0 (the same rules as the shop and Core.priceCart)
-export const unsellableIn = (catalog) => (it) => {
+// an order item that can no longer be bought with `catalog` on `today` (Japan date): 売り切れ,
+// 非公開, deleted, managed stock at 0, or an event-only product outside its event (the same rules
+// as the shop and Core.priceCart)
+export const unsellableIn = (catalog, today) => (it) => {
   const { p, v } = findItem(catalog, it);
-  return !Core.isVisible(p) || !v || Core.variantSoldOut(p, v);
+  return !Core.isVisible(p) || !v || Core.variantSoldOut(p, v) || !Core.eventSellable(catalog.settings, p, today);
 };
 
 // a paid Checkout Session → order paid + stock taken, exactly once
@@ -201,6 +211,10 @@ export async function finalizeSession(env, session, { ctx } = {}) {
     return { order, result: 'testmode' };
   }
   const ms = nowMs(env);
+  // the Japan date of the payment, for event-only products: a session cannot be paid after it
+  // expires, so a late webhook (or the sweep) never makes a payment made in time look late
+  const paidBy = Number.isInteger(session.expires_at) && session.expires_at > 0 ? Math.min(ms, session.expires_at * 1000) : ms;
+  const payDay = Core.japanToday(paidBy);
   const pi = session.payment_intent;
   const base = {
     ...order,
@@ -224,7 +238,7 @@ export async function finalizeSession(env, session, { ctx } = {}) {
     const st = takeStock(catalog, order.items || []);
     const rec = { ...base };
     if (st.short.length) rec.stockShort = st.short;
-    const gone = unavailableItems(catalog, order.items || []);
+    const gone = unavailableItems(catalog, order.items || [], payDay);
     if (gone.length) rec.unavailable = gone;
     let r;
     if (!st.touched) r = await markPaid(env, rec, ms);

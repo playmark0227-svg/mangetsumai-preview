@@ -17,13 +17,13 @@
   const LIVE = !!API.enabled;
 
   const KEYS = {
-    // v6: 2026-10-12 送料表（地域×重さ）と商品の重さ
-    catalog: 'mangetsu.catalog.v6',
+    // v7: 2026-10-14 北海道満喫セット（イベント限定・送料込み）と実物の袋の写真
+    catalog: 'mangetsu.catalog.v7',
     cart: 'mangetsu.cart.v1',
     orders: 'mangetsu.orders.v2',
   };
   // clean up data from earlier demo versions (old catalog, test orders paid by 代金引換)
-  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.catalog.v3', 'mangetsu.catalog.v4', 'mangetsu.catalog.v5', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.catalog.v3', 'mangetsu.catalog.v4', 'mangetsu.catalog.v5', 'mangetsu.catalog.v6', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
 
   const { DEFAULT_CATALOG, DEFAULT_EVENT, ID_RE, clone, normalize } = C;
 
@@ -83,17 +83,27 @@
   const category = (id) => catalog().categories.find((c) => c.id === id);
   const { isVisible, variantSoldOut, productSoldOut, minPrice } = C;
   const visibleProducts = () => catalog().products.filter(isVisible);
+  // the shop list, categories, home and related products leave out event-only items
+  const listedProducts = () => catalog().products.filter(C.isListed);
+  // event-only items can be bought only while the event is on and they are on its page
+  const eventSellable = (p) => C.eventSellable(catalog().settings, p, today());
   // how many of this variant can be in one order
   const maxFor = (p, v) => C.maxFor(catalog().settings, p, v);
 
   /* ---------- shipping ---------- */
-  // lines: [{ pid, vid, qty }] (cart lines) → C.shippingQuote result
+  // lines: [{ pid, vid, qty }] (cart lines) → C.shippingQuote result.
+  // 送料込みの商品 (options.shipIncluded) are left out, and so is their price from the free-shipping line
+  // (the third argument is no longer used: the charged subtotal is worked out here, as core.priceCart does)
   const weightLines = (lines) => lines.map((l) => {
     const p = product(l.pid);
     const v = p && p.variants.find((x) => x.id === l.vid);
-    return { weight: v ? v.weight : 0, qty: v ? l.qty : 0 };
+    return { weight: v ? v.weight : 0, qty: v ? l.qty : 0, total: v ? v.price * l.qty : 0, shipIncluded: !!(p && p.options.shipIncluded) };
   });
-  const shippingFor = (lines, pref, sub) => C.shippingQuote({ lines: weightLines(lines), pref, sub, ship: catalog().settings.ship });
+  const shippingFor = (lines, pref) => {
+    const wl = weightLines(lines);
+    const sub = wl.reduce((s, l) => s + (l.shipIncluded ? 0 : l.total), 0);
+    return C.shippingQuote({ lines: wl, pref, sub, ship: catalog().settings.ship });
+  };
 
   /* ---------- event page (期間限定) ---------- */
   // dates follow Japan time, the same as the server
@@ -116,7 +126,7 @@
       const p = l && product(l.pid);
       if (!isVisible(p)) continue;
       const v = p.variants.find((x) => x.id === l.vid);
-      if (!v || variantSoldOut(p, v)) continue;
+      if (!v || variantSoldOut(p, v) || !eventSellable(p)) continue;
       const gift = p.options.gift && typeof l.gift === 'string' ? l.gift : 'none';
       const qty = Math.min(maxFor(p, v), Math.max(1, int(l.qty, 1)));
       const dup = out.find((x) => x.pid === l.pid && x.vid === l.vid && x.gift === gift);
@@ -165,7 +175,7 @@
     LIVE, KEYS, DEFAULT_CATALOG, DEFAULT_EVENT, clone, ID_RE,
     today, eventActive, markEventVisit, eventSource,
     ready, catalog, saveCatalog, setCatalog, rev: () => rev, resetCatalog, isCustomized, normalize,
-    product, category, isVisible, visibleProducts, variantSoldOut, productSoldOut, minPrice, maxFor,
+    product, category, isVisible, visibleProducts, listedProducts, eventSellable, variantSoldOut, productSoldOut, minPrice, maxFor,
     shippingFor,
     loadCart, saveCart,
     orders, addOrder, updateOrder, clearOrders, consumeStock,

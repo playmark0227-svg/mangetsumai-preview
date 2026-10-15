@@ -66,16 +66,19 @@ describe('admin authentication', () => {
 });
 
 describe('admin catalog', () => {
-  test('GET includes drafts, the public catalog does not', async () => {
+  test('GET includes drafts, the public catalog does not (it keeps event-only products for the event page)', async () => {
     const t = await setup({ stripe: false });
     const a = await t.call('GET', '/api/admin/catalog', { admin: true });
     assert.equal(a.status, 200);
     assert.equal(a.json.rev, 0);
-    assert.deepEqual(a.json.catalog.products.map((p) => p.id), ['shinmai-r8', 'genmai-30kg', 'teiki']);
+    assert.deepEqual(a.json.catalog.products.map((p) => p.id), ['shinmai-r8', 'genmai-30kg', 'hokkaido-set', 'teiki']);
     assert.deepEqual(a.json.catalog, Core.normalize(Core.clone(Core.DEFAULT_CATALOG)));
     const p = await t.call('GET', '/api/catalog');
     assert.equal(p.status, 200);
-    assert.deepEqual(p.json.catalog.products.map((x) => x.id), ['shinmai-r8', 'genmai-30kg']);
+    assert.deepEqual(p.json.catalog.products.map((x) => x.id), ['shinmai-r8', 'genmai-30kg', 'hokkaido-set']);
+    const set = p.json.catalog.products.find((x) => x.id === 'hokkaido-set');
+    assert.deepEqual([set.options.eventOnly, set.options.shipIncluded], [true, true]);
+    assert.ok(p.json.catalog.settings.event.products.includes('hokkaido-set'));
     assert.equal(p.headers.get('Cache-Control'), 'no-store');
     await t.close();
   });

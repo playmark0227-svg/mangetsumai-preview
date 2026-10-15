@@ -65,6 +65,9 @@
     ears: { src: 'assets/img/photo/ears-moon.webp', alt: '月あかりに実る稲穂（イメージ）', fit: 'cover' },
     paddy: { src: 'assets/img/photo/moon-paddy.webp', alt: '満月と実りの田んぼ（イメージ）', fit: 'cover' },
     summer: { src: 'assets/img/photo/summer.webp', alt: '夏の夕暮れの田んぼ（イメージ）', fit: 'cover' },
+    // 実際の袋の写真（2026-10 先方提供。背景を切り抜き）
+    bag: { src: 'assets/img/products/shinmai-5kg.webp', alt: '満月米 ななつぼし 5kgの袋', fit: 'contain' },
+    bag2: { src: 'assets/img/products/shinmai-10kg.webp', alt: '満月米 ななつぼし 5kgの袋を2つ（10kg）', fit: 'contain' },
   };
   const RICE_GALLERY = [G.bowl, G.grains, G.onigiri, G.hand];
 
@@ -77,7 +80,12 @@
     end: '2027-01-25',
     lead: 'ご来場ありがとうございます。満月米は、このページからスマートフォンでそのままご注文いただけます。重たいお米は、ご自宅まで直接お届けします。',
     shipNote: 'イベントでのご注文は、1か月後をめどに順次お届けします。',
-    products: ['shinmai-r8', 'genmai-30kg'],
+    products: ['hokkaido-set', 'shinmai-r8', 'genmai-30kg'],
+    // イベントページの上に大きく出す画像（先方のチラシ）
+    banner: {
+      src: 'assets/img/event/hokkaido-set.webp',
+      alt: '北海道から、届くごちそう。北海道満喫セット（満月米 ななつぼし 5kgと北海道の海鮮珍味セット）9,800円、税込・送料込み。イベント限定特別価格。',
+    },
   };
 
   const DEFAULT_CATALOG = {
@@ -93,6 +101,7 @@
       { id: 'shinmai', name: '新米' },
       { id: 'genmai', name: '玄米' },
       { id: 'teiki', name: '定期便' },
+      { id: 'set', name: 'セット' },
     ],
     products: [
       {
@@ -107,8 +116,8 @@
         when: 'ご購入順に順次発送',
         lead: 'この秋に実った、令和8年産の新米です。北海道士別市上士別町の山奥で、天塩川最上流の水と大きな寒暖差のなかで育ったななつぼしです。冷めてもおいしく、お弁当やおにぎりにも向いています。',
         ship: 'ご購入いただいた順に、順次発送します',
-        visual: { kind: 'bag', style: 'seal', label: '5kg' },
-        gallery: [G.ears, G.gohan, G.bowl, G.grains],
+        visual: { kind: 'image', src: 'assets/img/products/shinmai-5kg.webp', fit: 'contain' },
+        gallery: [G.bag2, G.ears, G.gohan, G.bowl],
         variants: [
           { id: '5kg', label: '5kg', price: 3600, stock: null, weight: 5 },
           { id: '10kg', label: '10kg（5kg×2袋）', price: 6900, stock: null, weight: 10 },
@@ -139,6 +148,31 @@
         specs: [
           ['名称', '玄米'], ['原料玄米', '北海道産 ななつぼし 令和8年産'], ['内容量', '30kg'], ['調製年月日', '袋に記載'], ['包装', '紙袋'],
           ['保存方法', RICE_STORE], ['配送方法', '常温便'], ['生産者', PRODUCER], ['販売者', SELLER],
+        ],
+      },
+      {
+        // 高輪イベント限定。イベントページだけで販売し、送料は価格に含む
+        id: 'hokkaido-set',
+        name: '北海道満喫セット',
+        category: 'set',
+        status: 'published',
+        featured: false,
+        meta: '北海道のお米と海の幸',
+        badge: { text: 'イベント限定', line: false },
+        card: '満月米 ななつぼし 5kgと、北海道の海鮮珍味セットの詰め合わせです。',
+        when: '', // イベントページのカードには出さないので空（管理画面のプレビューも同じ見え方にする）
+        lead: '大地と海が育てた、北海道のおいしさをご自宅へお届けします。満月米 ななつぼし 5kgに、ほたてのマヨネーズやたこの燻製など、北海道の海の幸を詰め合わせた珍味セットを合わせました。高輪のイベント限定の特別価格です。',
+        ship: 'イベント期間中にご注文いただいた順に、順次発送します',
+        visual: { kind: 'image', src: 'assets/img/event/hokkaido-set.webp', fit: 'contain' },
+        gallery: [{ ...G.bag, alt: '満月米 ななつぼし 5kgの袋（イメージ）' }],
+        variants: [{ id: 'set', label: '1セット', price: 9800, stock: null, weight: 6 }],
+        options: { gift: false, award: false, preorder: false, subscription: false, traits: true, eventOnly: true, shipIncluded: true },
+        specs: [
+          ['セット内容', '満月米 ななつぼし 5kg（北海道士別市上士別町産）、北海道の海鮮珍味セット'],
+          ['海鮮珍味の内容', '（準備中）'], ['原材料・アレルギー', '（準備中）'],
+          ['賞味期限', 'お米：精米日より1ヵ月（目安）／海鮮珍味：（準備中）'], ['保存方法', '（準備中）'], ['配送方法', '（準備中）'],
+          ['送料', '価格に含まれます'], ['販売期間', 'イベントの期間中のみ'],
+          ['生産者（お米）', PRODUCER], ['販売者', SELLER],
         ],
       },
       {
@@ -222,6 +256,8 @@
         preorder: !!(p.options && p.options.preorder),
         subscription: !!(p.options && p.options.subscription),
         traits: !!(p.options && p.options.traits),
+        eventOnly: !!(p.options && p.options.eventOnly),       // イベントページだけで販売
+        shipIncluded: !!(p.options && p.options.shipIncluded), // 送料は価格に含む（送料計算から外す）
       },
       specs: (Array.isArray(p.specs) ? p.specs : []).filter((r) => Array.isArray(r) && (r[0] || r[1])).map((r) => [str(r[0]), str(r[1])]),
     };
@@ -241,6 +277,7 @@
       lead: str(e.lead, d.lead),
       shipNote: str(e.shipNote).trim() || d.shipNote,
       products: (Array.isArray(e.products) ? e.products : []).filter((x) => typeof x === 'string' && ID_RE.test(x)),
+      banner: e.banner && typeof e.banner === 'object' && str(e.banner.src) ? { src: e.banner.src, alt: str(e.banner.alt) } : null,
     };
   }
   function normalize(c) {
@@ -265,6 +302,8 @@
 
   /* ---------- product helpers ---------- */
   const isVisible = (p) => !!p && p.status !== 'draft';
+  // shown in the shop list, categories, home and related products (event-only items live on the event page)
+  const isListed = (p) => isVisible(p) && !p.options.eventOnly;
   const variantSoldOut = (p, v) => p.status === 'soldout' || (v.stock !== null && v.stock <= 0);
   const productSoldOut = (p) => p.variants.every((v) => variantSoldOut(p, v));
   const minPrice = (p) => {
@@ -278,6 +317,9 @@
   // today: 'YYYY-MM-DD' (the shop passes the shopper's date, the server passes Japan time)
   const eventActive = (e, today) => !!e && e.enabled && (!e.start || today >= e.start) && (!e.end || today <= e.end);
   const japanToday = (now = Date.now()) => new Date(now + 9 * 3600000).toISOString().slice(0, 10);
+  // an event-only product can be bought while the event is on and the product is on its page
+  const eventSellable = (settings, p, today) => !p.options.eventOnly
+    || (eventActive(settings.event, today) && settings.event.products.includes(p.id));
 
   /* ---------- shipping ---------- */
   const regionOf = (pref) => SHIP_REGIONS.find((r) => r.prefs.includes(pref)) || null;
@@ -298,10 +340,13 @@
   }
   // shipping for one order.
   // fee is null while the prefecture is unknown (cart before the address is entered)
+  // lines with shipIncluded (送料込みの商品) are left out: they ship at the shop's cost.
+  // sub is the 商品小計 of the lines that do pay shipping (for the free-shipping line)
   function shippingQuote({ lines, pref = '', sub = 0, ship }) {
     const region = regionOf(pref);
     const rates = ship.rates;
-    const parcels = packParcels(lines.filter((l) => l.qty > 0)).map((kg) => {
+    const charged = lines.filter((l) => l.qty > 0 && !l.shipIncluded);
+    const parcels = packParcels(charged).map((kg) => {
       const i = classIndex(kg);
       return { kg, cls: SHIP_CLASSES[i], fee: region ? rates[region.id][i] : null };
     });
@@ -311,6 +356,7 @@
       region: region ? { id: region.id, name: region.name } : null,
       parcels,
       free,
+      included: lines.some((l) => l.qty > 0 && l.shipIncluded),
       fee: !parcels.length || free ? 0 : raw,
     };
   }
@@ -322,7 +368,8 @@
 
   /* ---------- order pricing (the server recomputes everything with this) ---------- */
   // items: [{ pid, vid, qty }] → priced lines, problems that stop checkout, and totals
-  function priceCart(catalog, items, { pref = '' } = {}) {
+  // today: 'YYYY-MM-DD' in Japan time (decides whether event-only products can be bought)
+  function priceCart(catalog, items, { pref = '', today = japanToday() } = {}) {
     const lines = [];
     const problems = [];
     for (const it of Array.isArray(items) ? items : []) {
@@ -331,6 +378,7 @@
       if (!isVisible(p) || !v) { problems.push({ pid: str(it && it.pid), vid: str(it && it.vid), code: 'not_found', name: p ? p.name : '' }); continue; }
       const name = p.variants.length > 1 ? `${p.name} ${v.label}` : p.name;
       if (variantSoldOut(p, v)) { problems.push({ pid: p.id, vid: v.id, code: 'sold_out', name }); continue; }
+      if (!eventSellable(catalog.settings, p, today)) { problems.push({ pid: p.id, vid: v.id, code: 'event_only', name }); continue; }
       const qty = int(it.qty, 0);
       const max = maxFor(catalog.settings, p, v);
       if (qty < 1 || qty > max) { problems.push({ pid: p.id, vid: v.id, code: v.stock !== null && qty > v.stock ? 'stock' : 'qty', name, max }); continue; }
@@ -338,10 +386,12 @@
         pid: p.id, vid: v.id, name: p.name, variant: p.variants.length > 1 ? v.label : '',
         qty, unit: v.price, total: v.price * qty, weight: v.weight,
         preorder: p.options.preorder, subscription: p.options.subscription, ship: p.ship,
+        eventOnly: p.options.eventOnly, shipIncluded: p.options.shipIncluded,
       });
     }
     const sub = lines.reduce((s, l) => s + l.total, 0);
-    const shipping = shippingQuote({ lines, pref, sub, ship: catalog.settings.ship });
+    const chargedSub = lines.reduce((s, l) => s + (l.shipIncluded ? 0 : l.total), 0);
+    const shipping = shippingQuote({ lines, pref, sub: chargedSub, ship: catalog.settings.ship });
     return { lines, problems, sub, shipping, total: shipping.fee === null ? null : sub + shipping.fee };
   }
 
@@ -349,8 +399,8 @@
     PREFS, SHIP_REGIONS, SHIP_CLASSES, MAX_PARCEL_KG, DEFAULT_SHIP_RATES,
     DEFAULT_CATALOG, DEFAULT_EVENT, ID_RE,
     clone, normalize, normShip,
-    isVisible, variantSoldOut, productSoldOut, minPrice, maxFor,
-    eventActive, japanToday,
+    isVisible, isListed, variantSoldOut, productSoldOut, minPrice, maxFor,
+    eventActive, eventSellable, japanToday,
     regionOf, packParcels, shippingQuote, shippingRange, priceCart,
   });
   root.MangetsuCore = Core;

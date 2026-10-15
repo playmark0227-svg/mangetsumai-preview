@@ -28,21 +28,32 @@
   const PAY_STATE = { paid: '決済済み', pending: '決済待ち', expired: '期限切れ' };
   const PAY_FILTER = { paid: '決済済みの注文', pending: '決済待ちの注文', all: 'すべて（決済待ち・期限切れを含む）' };
   const BAG_STYLES = { single: '1袋', double: '2袋セット', seal: '新米シール付き', phases: '定期便（月の満ち欠け）', plain: '無地の紙袋（玄米など）' };
+  // event-only goods are left out of the top page's product grid (C.isListed), so they cannot be
+  // starred: the top page shows them in the event banner instead (while they are on sale)
+  const EVENT_FEATURE_NOTE = 'イベント限定の商品は、イベントの期間中、トップページのイベントのバナーで紹介されます';
+  // thumb: a smaller copy for the picker buttons (the image itself is used when chosen)
   const BUILTIN_IMAGES = [
+    // 実物の写真（2026-10 先方提供。背景を切り抜き）とチラシ
+    { src: 'assets/img/products/shinmai-5kg.webp', alt: '満月米 ななつぼし 5kgの袋（実物の写真）', fit: 'contain' },
+    { src: 'assets/img/products/shinmai-10kg.webp', alt: '5kgの袋を2つ（10kg）', fit: 'contain' },
+    { src: 'assets/img/event/hokkaido-set.webp', thumb: 'assets/img/event/hokkaido-set-sm.webp', alt: '北海道満喫セットのチラシ', fit: 'contain' },
     { src: 'assets/img/bowl.webp', alt: '茶碗に盛った炊きたてのごはん', fit: 'contain' },
     { src: 'assets/img/rice-hand-sm.webp', alt: '手のひらにすくった精米', fit: 'cover' },
     { src: 'assets/img/moon-sm.webp', alt: '満月', fit: 'contain' },
     { src: 'assets/img/medal.webp', alt: '米-1グランプリ in らんこし 2025 金賞受賞メダル', fit: 'contain' },
-    { src: 'assets/img/photo/grains.webp', alt: '枡からこぼれる精米（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/onigiri.webp', alt: 'おにぎり（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/teishoku.webp', alt: '和食の食卓（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/gohan.webp', alt: '土鍋で炊いたごはん（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/ears-moon.webp', alt: '月あかりに実る稲穂（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/moon-paddy.webp', alt: '満月と実りの田んぼ（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/summer.webp', alt: '夏の夕暮れの田んぼ（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/winter.webp', alt: '冬の夜の雪原（イメージ）', fit: 'cover' },
-    { src: 'assets/img/photo/spring.webp', alt: '山の湧き水（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/grains.webp', thumb: 'assets/img/photo/grains-sm.webp', alt: '枡からこぼれる精米（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/onigiri.webp', thumb: 'assets/img/photo/onigiri-sm.webp', alt: 'おにぎり（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/teishoku.webp', thumb: 'assets/img/photo/teishoku-sm.webp', alt: '和食の食卓（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/gohan.webp', thumb: 'assets/img/photo/gohan-sm.webp', alt: '土鍋で炊いたごはん（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/ears-moon.webp', thumb: 'assets/img/photo/ears-moon-sm.webp', alt: '月あかりに実る稲穂（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/moon-paddy.webp', thumb: 'assets/img/photo/moon-paddy-sm.webp', alt: '満月と実りの田んぼ（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/summer.webp', thumb: 'assets/img/photo/summer-sm.webp', alt: '夏の夕暮れの田んぼ（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/winter.webp', thumb: 'assets/img/photo/winter-sm.webp', alt: '冬の夜の雪原（イメージ）', fit: 'cover' },
+    { src: 'assets/img/photo/spring.webp', thumb: 'assets/img/photo/spring-sm.webp', alt: '山の湧き水（イメージ）', fit: 'cover' },
   ];
+  // a picker button's image (the built-in's own src stays what is saved). Drawn by ui.js like the
+  // shop's images, so a cut-out photo gets the same look (see imageHTML)
+  const builtinImg = (b) => U.imageHTML({ src: b.thumb || b.src, fit: b.fit }, '');
   const ICON = {
     up: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10 8 5.5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
     down: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
@@ -438,7 +449,7 @@
   function refreshMode() {
     if (locked || saving || !$('#admModal').hidden || $('#admLogin:not([hidden])')) return '';
     if (currentRoute === 'orders') return 'store';
-    if (hasUnsaved() || uploadsFor(draft)) return '';
+    if (hasUnsaved() || uploadsFor(draft) || evUploading()) return '';
     const a = document.activeElement;
     if (a && a !== main && main.contains(a) && (a.matches(FIELD_SEL) || !(a.id || a.matches('[data-focus]')))) return '';
     return 'redraw';
@@ -516,19 +527,47 @@
   const weightText = (p) => [...new Set(p.variants.map((v) => v.weight))].sort((a, b) => a - b).map(kgText).join('・');
   const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const catName = (id) => { const c = S.category(id); return c ? c.name : '未分類'; };
+  // small labels under a product's name: イベント限定 / 送料込み (and an event-only product
+  // that is not on the event page, so nobody can buy it)
+  function productTags(p, c = S.catalog()) {
+    const t = [];
+    if (p.options.eventOnly) t.push('<span class="adm-tag">イベント限定</span>');
+    if (p.options.shipIncluded) t.push('<span class="adm-tag">送料込み</span>');
+    if (p.options.eventOnly && p.status !== 'draft' && !c.settings.event.products.includes(p.id)) t.push('<span class="adm-tag adm-tag--warn">イベントページに入っていません</span>');
+    return t.length ? `<span class="adm-tags">${t.join('')}</span>` : '';
+  }
+
+  /* ---------- event period: 非公開 / 開始前 / 販売中 / 終了 ---------- */
+  // e: settings.event (or the event form's values). Follows core.eventActive
+  function eventPhase(e, today = S.today()) {
+    if (!e.enabled) return 'off';
+    if (e.start && today < e.start) return 'before';
+    if (e.end && today > e.end) return 'after';
+    return 'on';
+  }
+  const PHASE = { off: '非公開', before: '開始前', on: '販売中', after: '終了' };
+  const PHASE_PILL = { off: 'draft', before: 'preparing', on: 'published', after: 'draft' };
+  const phasePill = (ph) => `<span class="pill pill--${PHASE_PILL[ph]}">${PHASE[ph]}</span>`;
+  const dateText = (d) => (d ? d.replace(/-/g, '/') : '');
 
   // shipping of an order: 「送料 ¥1,280（関東・1個口）」 when the order has shipDetail
   const parcelsOf = (o) => (o.shipDetail && Array.isArray(o.shipDetail.parcels) ? o.shipDetail.parcels : []);
-  function shipLine(o) {
+  // the order has 送料込みの商品 (options.shipIncluded): they are not in the parcels nor in the fee
+  const shipIncluded = (o) => !!(o.shipDetail && typeof o.shipDetail === 'object' && o.shipDetail.included === true);
+  const hasShipNote = (o) => parcelsOf(o).length > 0 || shipIncluded(o);
+  const SHIP_INCL = '<span class="adm-ship-incl">送料込みの商品を含む</span>';
+  // withIncl false: the caller puts SHIP_INCL itself (the details show the boxes first)
+  function shipLine(o, withIncl = true) {
     const ps = parcelsOf(o);
-    if (!ps.length) return `送料 ¥${yen(o.ship)}`;
+    const incl = withIncl && shipIncluded(o) ? SHIP_INCL : '';
+    if (!ps.length) return incl ? `<span class="nowrap">送料 ¥${yen(o.ship)}</span>${incl}` : `送料 ¥${yen(o.ship)}`;
     const d = o.shipDetail;
     const region = d.region && typeof d.region === 'object' ? d.region.name : d.region;
     const free = Number(o.ship) === 0 && ps.some((p) => Number(p.fee) > 0);
     // unbreakable pieces, so a narrow table cell wraps only between them: 「送料 ¥0」「（送料無料・」「関東・1個口）」
     const where = esc([region, `${ps.length}個口`].filter(Boolean).join('・'));
     const pieces = [`送料 ¥${yen(o.ship)}`, ...(free ? ['（送料無料・', `${where}）`] : [`（${where}）`])];
-    return pieces.map((x) => `<span class="nowrap">${x}</span>`).join('');
+    return pieces.map((x) => `<span class="nowrap">${x}</span>`).join('') + incl;
   }
   const parcelLine = (o) => { const ps = parcelsOf(o); return ps.length ? `箱の内訳：${ps.map((p) => `${esc(kgText(p.kg))} ¥${yen(p.fee)}`).join('／')}` : ''; };
 
@@ -599,7 +638,8 @@
   // The money was taken, so the owner decides whether it can still be shipped or refunds it
   const unavailableOf = (o) => (Array.isArray(o.unavailable) ? o.unavailable.filter((u) => u && typeof u === 'object' && !Array.isArray(u)) : []);
   const UNAVAIL_BADGE = '<span class="adm-error adm-short adm-flag">販売停止後の決済</span>';
-  const UNAVAIL_REASON = { soldout: '売り切れ', draft: '非公開', deleted: '削除済み' };
+  // event_ended: an event-only product whose event was over (or that was taken off the event page)
+  const UNAVAIL_REASON = { soldout: '売り切れでした', draft: '非公開でした', deleted: '削除済みでした', event_ended: 'イベントでの販売を終えていました' };
   // 「満月米 ななつぼし 新米（5kg）」: the name as it was ordered (the line in 内訳), else the one sent with the flag
   function unavailableName(u, o) {
     const pid = str(u.pid), vid = str(u.vid);
@@ -612,7 +652,7 @@
   function unavailableItems(us, o) {
     const lines = us.map((u) => {
       const why = own(UNAVAIL_REASON, u.reason);
-      return `${esc(unavailableName(u, o))}は、お支払いの時点で${why ? `${why}でした` : '販売していませんでした'}。発送できるか確認し、できない場合は Stripe のダッシュボードから返金してください。`;
+      return `${esc(unavailableName(u, o))}は、お支払いの時点で${why || '販売していませんでした'}。発送できるか確認し、できない場合は Stripe のダッシュボードから返金してください。`;
     });
     return [...new Set(lines)].map((x) => `<li class="adm-error">${x}</li>`).join('');
   }
@@ -644,7 +684,7 @@
     return `
           <div class="adm-table-wrap adm-table-wrap--recent" style="box-shadow:none;background:none">
             <table class="adm-table adm-table--recent"><thead><tr><th>注文番号・日時</th><th>お客様</th><th class="adm-num">合計</th><th>状態</th></tr></thead><tbody>
-              ${orders.slice(0, 5).map((o) => `<tr><td class="cell-no">${esc(o.no)}<span class="adm-order-at">${fmtDate(o.at)}</span></td><td data-label="お客様">${wordPhrases((o.customer || {}).name)}${addrWarningsOf(o).length ? ADDR_BADGE : ''}</td><td class="adm-num" data-label="合計">¥${yen(o.total)}${parcelsOf(o).length ? `<small class="adm-ship-note">${shipLine(o)}</small>` : ''}</td><td class="cell-status" data-label="状態"><span class="pill pill--${esc(o.status)}">${ORDER_STATUS[o.status] || ''}</span>${isTestPay(o) ? TEST_BADGE : ''}${mismatchOf(o) ? MISMATCH_BADGE : ''}${unavailableOf(o).length ? UNAVAIL_BADGE : ''}</td></tr>`).join('')}
+              ${orders.slice(0, 5).map((o) => `<tr><td class="cell-no">${esc(o.no)}<span class="adm-order-at">${fmtDate(o.at)}</span></td><td data-label="お客様">${wordPhrases((o.customer || {}).name)}${addrWarningsOf(o).length ? ADDR_BADGE : ''}</td><td class="adm-num" data-label="合計">¥${yen(o.total)}${hasShipNote(o) ? `<small class="adm-ship-note">${shipLine(o)}</small>` : ''}</td><td class="cell-status" data-label="状態"><span class="pill pill--${esc(o.status)}">${ORDER_STATUS[o.status] || ''}</span>${isTestPay(o) ? TEST_BADGE : ''}${mismatchOf(o) ? MISMATCH_BADGE : ''}${unavailableOf(o).length ? UNAVAIL_BADGE : ''}</td></tr>`).join('')}
             </tbody></table>
           </div>`;
   }
@@ -679,7 +719,7 @@
           </section>
           <section class="adm-card">
             <h2>イベントページ</h2>
-            ${(() => { const e = c.settings.event; const on = S.eventActive(e); return `<p><span class="pill pill--${on ? 'published' : 'draft'}">${on ? '公開中' : '公開していません'}</span>　${esc(e.title)}</p><p class="adm-muted" style="margin-top:6px">イベントからの注文：<span id="dashEvent">${dashEventHTML()}</span>　<a class="link" href="#event">QRコード・設定</a></p>`; })()}
+            ${(() => { const e = c.settings.event; return `<p>${phasePill(eventPhase(e))}　${esc(e.title)}</p><p class="adm-muted" style="margin-top:6px">イベントからの注文：<span id="dashEvent">${dashEventHTML()}</span>　<a class="link" href="#event">QRコード・設定</a></p>`; })()}
           </section>
           ${LIVE ? `
           <section class="adm-card">
@@ -748,7 +788,7 @@
                     <button class="adm-btn adm-btn--icon adm-btn--quiet" type="button" data-move="1" aria-label="${esc(p.name)}を下へ" ${filtering || i === c.products.length - 1 ? 'aria-disabled="true"' : ''}>${ICON.down}</button>
                   </span>
                 </td>
-                <td class="cell-prod"><div class="adm-prod">${thumb(p)}<span class="adm-prod__name"><a href="#product-${esc(p.id)}">${esc(p.name)}</a><small>ID：${esc(p.id)}${p.meta ? `　${esc(p.meta)}` : ''}</small></span></div></td>
+                <td class="cell-prod"><div class="adm-prod">${thumb(p)}<span class="adm-prod__name"><a href="#product-${esc(p.id)}">${esc(p.name)}</a><small>ID：${esc(p.id)}${p.meta ? `　${esc(p.meta)}` : ''}</small>${productTags(p, c)}</span></div></td>
                 <td data-label="カテゴリ">${esc(catName(p.category))}</td>
                 <td class="adm-num" data-label="価格">${priceRange(p)}${p.options.subscription ? '<span class="adm-faint">／回</span>' : ''}<small class="adm-weight">重さ ${weightText(p)}</small></td>
                 <td data-label="在庫">${stockText(p)}</td>
@@ -758,7 +798,9 @@
                     ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${p.status === k ? 'selected' : ''}>${v}</option>`).join('')}
                   </select>
                 </td>
-                <td data-label="トップ"><button class="adm-star" type="button" data-feature="${esc(p.id)}" aria-pressed="${p.featured}" aria-label="${esc(p.name)}をトップページに表示">${ICON.star}</button></td>
+                <td data-label="トップ">${p.options.eventOnly
+                  ? `<button class="adm-star" type="button" data-feature="${esc(p.id)}" aria-pressed="false" aria-disabled="true" aria-label="${esc(p.name)}をトップページに表示（イベント限定の商品のため、選べません）" title="${EVENT_FEATURE_NOTE}">${ICON.star}</button>`
+                  : `<button class="adm-star" type="button" data-feature="${esc(p.id)}" aria-pressed="${p.featured}" aria-label="${esc(p.name)}をトップページに表示">${ICON.star}</button>`}</td>
                 <td class="cell-actions">
                   <div class="adm-row-actions">
                     <a class="adm-btn" href="#product-${esc(p.id)}">編集</a>
@@ -807,14 +849,25 @@
     const star = e.target.closest('[data-feature]');
     if (star) {
       const id = star.dataset.feature;
+      const noStar = 'イベント限定の商品には、★を付けられません。イベントの期間中は、トップページのイベントのバナーで紹介されます。';
+      if (star.getAttribute('aria-disabled') === 'true') { toast(noStar); return; }
       const want = !(S.product(id) || {}).featured;
-      let many = false;
+      let many = false, eventOnly = false;
       const ok = await commit((c) => {
         const p = c.products.find((x) => x.id === id);
         if (!p) return gone('この商品');
+        // made event-only on another screen meanwhile
+        eventOnly = !!p.options.eventOnly;
+        if (eventOnly) return false;
         p.featured = want;
-        many = want && c.products.filter((x) => x.featured).length > 4;
+        // only the stars that can be shown there (event-only goods are not in the top page's grid)
+        many = want && c.products.filter((x) => x.featured && !x.options.eventOnly).length > 4;
       });
+      if (eventOnly) {
+        if (currentRoute === 'products') { renderProducts(); const again = $(`[data-feature="${CSS.escape(id)}"]`); if (again) again.focus(); }
+        toast(noStar);
+        return;
+      }
       if (ok && many) toast('トップページには、★の付いた商品のうち並び順の上から4件が表示されます。');
       if (ok && currentRoute === 'products') { renderProducts(); const again = $(`[data-feature="${CSS.escape(id)}"]`); if (again) again.focus(); announce(want ? 'トップページに表示します' : 'トップページに表示しません'); }
       else if (refreshed()) renderProducts();
@@ -883,7 +936,7 @@
     meta: '', badge: { text: '', line: true }, card: '', when: 'ご購入順に順次発送', lead: '', ship: 'ご購入いただいた順に、順次発送します',
     visual: { kind: 'image', src: '', fit: 'cover' }, gallery: [],
     variants: [{ id: 'v1', label: '', price: '', stock: null, weight: 5 }],
-    options: { gift: false, award: false, preorder: false, subscription: false, traits: false },
+    options: { gift: false, award: false, preorder: false, subscription: false, traits: false, eventOnly: false, shipIncluded: false },
     specs: [['名称', ''], ['内容量', ''], ['賞味期限', ''], ['保存方法', ''], ['配送方法', '常温便'], ['生産者', '満月農園（北海道士別市上士別町）']],
   });
 
@@ -935,7 +988,7 @@
                   ${Object.entries({ published: '公開する', draft: '非公開（下書き）', soldout: '売り切れとして表示' }).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${draft.status === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}
                 </div>
               </fieldset>
-              <label class="adm-check adm-field--full"><input type="checkbox" name="featured" ${draft.featured ? 'checked' : ''}><span>トップページの「満月米をお届けします」に表示する<small>★の付いた商品のうち、並び順の上から4件が表示されます</small></span></label>
+              <label class="adm-check adm-field--full"><input type="checkbox" name="featured" id="f-featured" ${draft.featured && !draft.options.eventOnly ? 'checked' : ''} ${draft.options.eventOnly ? 'disabled' : ''}><span>トップページの「満月米をお届けします」に表示する<small id="f-featured-note">${featuredNote()}</small></span></label>
             </div>
           </section>
 
@@ -997,7 +1050,12 @@
               <label class="adm-check"><input type="checkbox" name="options.preorder" ${draft.options.preorder ? 'checked' : ''}><span>予約商品として扱う<small>カートと購入手続きで、発送時期の案内が出ます。日付指定はできなくなります。</small></span></label>
               <label class="adm-check"><input type="checkbox" name="options.subscription" ${draft.options.subscription ? 'checked' : ''}><span>定期便として扱う<small>価格に「／1回」が付き、確認画面に定期便の案内が出ます。</small></span></label>
               <label class="adm-check"><input type="checkbox" name="options.award" ${draft.options.award ? 'checked' : ''}><span>金賞メダルを表示する<small>米-1グランプリ in らんこし 2025 で金賞を受賞したお米（令和7年産）にだけ付けてください。</small></span></label>
-              <label class="adm-check"><input type="checkbox" name="options.traits" ${draft.options.traits ? 'checked' : ''}><span>「ななつぼしの特徴」を表示する（満月米の商品）</span></label>
+              <label class="adm-check"><input type="checkbox" name="options.traits" ${draft.options.traits ? 'checked' : ''}><span>「ななつぼしの特徴」を表示する<span class="nowrap">（満月米の商品）</span></span></label>
+              <div class="adm-check-group">
+                <label class="adm-check"><input type="checkbox" name="options.eventOnly" ${draft.options.eventOnly ? 'checked' : ''} aria-describedby="f-eventonly-note"><span>イベント限定<span class="nowrap">（イベントページだけで販売）</span><small>イベントの期間中だけ、イベントページに表示して販売します。イベントページの設定で、表示する商品に入れてください。</small></span></label>
+                <div class="adm-optnote" id="f-eventonly-note" aria-live="polite">${eventOnlyNote()}</div>
+              </div>
+              <label class="adm-check"><input type="checkbox" name="options.shipIncluded" ${draft.options.shipIncluded ? 'checked' : ''}><span>送料込み<span class="nowrap">（この商品には送料がかかりません）</span><small>送料は商品の価格に含まれます。ほかの商品と一緒に注文されたときは、ほかの商品の分だけ送料がかかります。</small></span></label>
             </div>
           </section>
 
@@ -1023,6 +1081,7 @@
         </div>
       </form>`;
     renderVariants(); renderVisual(); renderGallery(); renderSpecs(); renderPreview();
+    $('#f-eventonly-note').dataset.live = eventOnlyNote();
     if (isNew) $('#f-name').focus();
   }
 
@@ -1032,6 +1091,38 @@
     if (s) { s.textContent = '保存されていない変更があります'; s.classList.add('is-dirty'); }
     renderPreview();
   };
+  // under the イベント限定 option: whether the product can be bought now, and what to do if not
+  function eventOnlyNote() {
+    if (!draft || !draft.options.eventOnly) return '';
+    const e = S.catalog().settings.event;
+    const link = '<a class="link" href="#event">イベントページの設定</a>';
+    const until = e.end ? `（${dateText(e.end)}まで）` : '';
+    let msg = '', warn = false;
+    if (!originalId) msg = `保存したあと、${link}で、表示する商品に入れてください。${draft.status === 'draft' ? '非公開のあいだは、イベントページにも表示されません。' : ''}`;
+    else if (draft.status === 'draft') msg = '非公開の商品は、イベントページにも表示されません。';
+    else if (!e.products.includes(originalId)) { warn = true; msg = `この商品は、イベントページに入っていません。このままでは購入できません。${link}で、表示する商品に入れてください。`; }
+    else {
+      const ph = eventPhase(e);
+      if (ph === 'on') msg = `いまは、イベントページで販売中です${until}。`;
+      else if (ph === 'before') msg = `イベントページの開始前です。${dateText(e.start)}から販売します${until}。`;
+      else { warn = true; msg = ph === 'after' ? `イベントページの期間（${dateText(e.end)}まで）が終わったため、いまは購入できません。` : `イベントページを公開していないため、いまは購入できません（${link}）。`; }
+    }
+    return `<p class="${warn ? 'adm-error' : 'adm-hint'}">${msg}</p><p class="adm-hint">ショップの一覧・カテゴリ・トップページには表示されません。</p>`;
+  }
+  // a live region is written only when its text changes (so it is not announced again for nothing)
+  const liveHTML = (el, html) => { if (el && el.dataset.live !== html) { el.dataset.live = html; el.innerHTML = html; } };
+  const updateEventOnlyNote = () => liveHTML($('#f-eventonly-note'), eventOnlyNote());
+  // the トップページ checkbox: not for event-only goods (they are not in the top page's grid).
+  // Its own value stays in the draft while イベント限定 is on, and is dropped when saved (see saveDraft)
+  const featuredNote = () => (draft.options.eventOnly ? `${EVENT_FEATURE_NOTE}（ここでは選べません）` : '★の付いた商品のうち、並び順の上から4件が表示されます');
+  function syncFeatured() {
+    const f = $('#f-featured');
+    if (!f) return;
+    const ev = !!draft.options.eventOnly;
+    f.disabled = ev;
+    f.checked = !ev && !!draft.featured;
+    $('#f-featured-note').textContent = featuredNote();
+  }
   const normalized = () => S.normalize({ categories: [], products: [draft], settings: S.catalog().settings }).products[0];
   function renderPreview() {
     const box = $('#previewBox');
@@ -1095,7 +1186,7 @@
             <p class="adm-error" id="v-img-err" hidden></p>
           </div>
           <div class="adm-field"><span class="adm-label">サイト内の写真から選ぶ</span>
-            <div class="adm-builtins">${BUILTIN_IMAGES.map((b, i) => `<button class="adm-builtin" type="button" data-main-builtin="${i}" aria-label="${esc(b.alt)}を使う"><img class="visual-img is-${b.fit}" src="${U.asset(b.src)}" alt=""></button>`).join('')}</div>
+            <div class="adm-builtins">${BUILTIN_IMAGES.map((b, i) => `<button class="adm-builtin" type="button" data-main-builtin="${i}" aria-label="${esc(b.alt)}を使う">${builtinImg(b)}</button>`).join('')}</div>
           </div>
           <div class="adm-field"><label for="f-fit">写真の見せ方</label>
             <select class="select" id="f-fit" name="visual.fit"><option value="cover" ${v.fit !== 'contain' ? 'selected' : ''}>枠いっぱいに表示（はみ出た部分を切る）</option><option value="contain" ${v.fit === 'contain' ? 'selected' : ''}>写真全体を表示する</option></select></div>`}
@@ -1106,7 +1197,7 @@
     $('#galleryBox').innerHTML = `
       ${draft.gallery.length ? `<div class="adm-gallery">${draft.gallery.map((g, i) => `
         <div class="adm-gitem" data-gi="${i}">
-          <div class="adm-gitem__img"><img class="visual-img is-${g.fit === 'contain' ? 'contain' : 'cover'}" src="${esc(U.asset(g.src))}" alt=""></div>
+          <div class="adm-gitem__img">${U.imageHTML(g, '')}</div>
           <label class="visually-hidden" for="g-alt-${i}">写真${i + 1}の説明</label>
           <input class="input" id="g-alt-${i}" data-galt value="${esc(g.alt)}" placeholder="写真の説明" style="min-height:36px;padding:6px 8px">
           <div class="adm-gitem__tools">
@@ -1118,7 +1209,7 @@
       <div class="adm-toolbar" style="margin:12px 0 0">
         <span class="adm-upload"><input type="file" accept="image/*" id="galleryUpload" multiple aria-label="追加の写真をアップロード（一度に6枚まで）"><span class="adm-btn">${ICON.plus}写真をアップロード</span></span>
         <span class="adm-faint">サイト内の写真を追加：</span>
-        ${BUILTIN_IMAGES.map((b, i) => `<button class="adm-builtin" type="button" data-gal-builtin="${i}" aria-label="${esc(b.alt)}を追加" style="width:44px;height:44px"><img class="visual-img is-${b.fit}" src="${U.asset(b.src)}" alt=""></button>`).join('')}
+        ${BUILTIN_IMAGES.map((b, i) => `<button class="adm-builtin" type="button" data-gal-builtin="${i}" aria-label="${esc(b.alt)}を追加" style="width:44px;height:44px">${builtinImg(b)}</button>`).join('')}
       </div>`;
   }
 
@@ -1166,6 +1257,9 @@
       } else if (el.name.startsWith('visual.')) {
         const prev = $('.adm-visual__prev');
         if (prev) prev.innerHTML = U.visualHTML(normalized());
+      } else if (el.name === 'options.eventOnly' || el.name === 'status') {
+        updateEventOnlyNote();
+        if (el.name === 'options.eventOnly') syncFeatured();
       }
     }
     const vr = el.closest('[data-vi]');
@@ -1220,7 +1314,7 @@
     }
     if (t.dataset.galBuiltin !== undefined) {
       const b = BUILTIN_IMAGES[+t.dataset.galBuiltin];
-      draft.gallery.push({ ...b });
+      draft.gallery.push({ src: b.src, alt: b.alt, fit: b.fit });
       renderGallery(); markDirty(); refocus(`[data-gal-builtin="${t.dataset.galBuiltin}"]`); return;
     }
     const gi = t.closest('[data-gi]');
@@ -1264,12 +1358,12 @@
   // photos still being read / sent, per draft: saving waits for them, or they would be left out
   const uploads = new WeakMap();
   const uploadsFor = (d) => (d && uploads.get(d)) || 0;
-  // live: show that photos are being sent (the file input is blocked meanwhile)
-  function uploading(el, on) {
+  // live: show that photos are being sent (the file input is blocked meanwhile). what: 写真 / 画像
+  function uploading(el, on, what = '写真') {
     if (!LIVE) return;
     const b = el.nextElementSibling;
     el.disabled = on;
-    if (on) { b.dataset.label = b.innerHTML; b.textContent = '写真を送っています…'; announce('写真を送っています。少しお待ちください。'); }
+    if (on) { b.dataset.label = b.innerHTML; b.textContent = `${what}を送っています…`; announce(`${what}を送っています。少しお待ちください。`); }
     else if (b.dataset.label !== undefined) { b.innerHTML = b.dataset.label; delete b.dataset.label; }
   }
   async function editorFile(e) {
@@ -1429,6 +1523,7 @@
     let idTaken = false;
     const apply = (c) => {
       const p = clone(d);
+      if (p.options.eventOnly) p.featured = false; // not shown in the top page's grid (see featuredNote)
       const i = oid ? c.products.findIndex((x) => x.id === oid) : -1;
       if (c.products.some((x, j) => x.id === p.id && j !== i)) { idTaken = true; return false; }
       if (i >= 0) {
@@ -1627,7 +1722,7 @@
                 <td class="cell-no"><button class="adm-toggle" type="button" data-open="${esc(o.no)}" aria-expanded="${orderState.open === o.no}" aria-controls="od-${esc(o.no)}">${esc(o.no)}</button><span class="adm-order-at">${fmtDate(o.at)}</span></td>
                 <td class="cell-cu" data-label="お客様">${wordPhrases(cu.name)}${o.shipTo ? '<br><span class="adm-faint nowrap">別住所へお届け</span>' : ''}${o.source ? '<br><span class="pill pill--event">イベント</span>' : ''}${aw.length ? ADDR_BADGE : ''}</td>
                 <td class="cell-items" data-label="商品"><div class="adm-items">${items.map((it) => `<span class="adm-item">${itemLine(it)}</span>`).join('')}${short.length ? `<span class="adm-error adm-short">在庫が足りません：${short.map((x) => wordPhrases(x.name, '', `（${esc(x.short)}点）`)).join('、')}</span>` : ''}</div></td>
-                <td class="cell-total adm-num" data-label="合計">¥${yen(o.total)}${parcelsOf(o).length ? `<small class="adm-ship-note">${shipLine(o)}</small>` : ''}</td>
+                <td class="cell-total adm-num" data-label="合計">¥${yen(o.total)}${hasShipNote(o) ? `<small class="adm-ship-note">${shipLine(o)}</small>` : ''}</td>
                 <td class="cell-pay nowrap" data-label="お支払い">${esc(o.pay)}${LIVE && PAY_STATE[o.payment] ? `<br><span class="pill pill--pay-${esc(o.payment)}">${PAY_STATE[o.payment]}</span>` : ''}${test ? TEST_BADGE : ''}${mm ? MISMATCH_BADGE : ''}${ua.length ? UNAVAIL_BADGE : ''}</td>
                 <td class="cell-status" data-label="状態">
                   ${unpaid(o) ? `<span class="adm-faint">${o.payment === 'expired' ? phrases(['お支払いが', 'なかったため、', '発送しません']) : phrases(['お支払いの完了を', '待っています'])}</span>` : `
@@ -1642,7 +1737,7 @@
                   <div class="adm-order-grid">
                     <div><h3>ご注文者さま</h3><ul><li>${esc(cu.name)}（${esc(cu.kana)}）</li><li>〒${esc(zipText(cu.zip))} ${esc(cu.address)}</li>${awCu}<li>${esc(cu.tel)}</li><li>${esc(cu.email)}</li></ul></div>
                     <div><h3>お届け先</h3><ul>${o.shipTo ? `<li>${esc(o.shipTo.name)} さま</li><li>〒${esc(zipText(o.shipTo.zip))} ${esc(o.shipTo.address)}</li>${awTo}<li>${esc(o.shipTo.tel)}</li>` : `<li>ご注文者さまと同じ</li>${awTo}`}<li>希望日：${esc(o.date || (o.preorder ? '予約商品の発送にあわせる' : o.source ? 'イベント注文（日付指定なし）' : '最短'))}／時間帯：${esc(o.time || '指定なし')}</li>${o.noshi ? `<li>のし名入れ：${esc(o.noshi)}</li>` : ''}</ul></div>
-                    <div><h3>内訳</h3><ul>${items.map((it) => `<li>${itemLine(it, true)}</li>`).join('')}<li>${shipLine(o)}${parcelsOf(o).length ? `<br><span class="adm-faint">${parcelLine(o)}</span>` : ''}</li><li><b>合計 ¥${yen(o.total)}</b></li>${LIVE && PAY_STATE[o.payment] ? `<li>お支払い：${esc(o.pay)}（${PAY_STATE[o.payment]}${o.paidAt ? `　${fmtDate(o.paidAt)}` : ''}）</li>` : ''}${test ? `<li class="adm-error">${TEST_LINE}</li>` : ''}${mm ? `<li class="adm-error">${mismatchLine(mm)}</li>` : ''}${unavailableItems(ua, o)}${short.length ? `<li class="adm-error">在庫が足りません：${short.map((x) => `${esc(x.name)} ${esc(x.short)}点`).join('、')}。お客さまへのご連絡をお願いします。</li>` : ''}${o.memo ? `<li>備考：${esc(o.memo)}</li>` : ''}</ul></div>
+                    <div><h3>内訳</h3><ul>${items.map((it) => `<li>${itemLine(it, true)}</li>`).join('')}<li>${shipLine(o, false)}${parcelsOf(o).length ? `<br><span class="adm-faint">${parcelLine(o)}</span>` : ''}${shipIncluded(o) ? SHIP_INCL : ''}</li><li><b>合計 ¥${yen(o.total)}</b></li>${LIVE && PAY_STATE[o.payment] ? `<li>お支払い：${esc(o.pay)}（${PAY_STATE[o.payment]}${o.paidAt ? `　${fmtDate(o.paidAt)}` : ''}）</li>` : ''}${test ? `<li class="adm-error">${TEST_LINE}</li>` : ''}${mm ? `<li class="adm-error">${mismatchLine(mm)}</li>` : ''}${unavailableItems(ua, o)}${short.length ? `<li class="adm-error">在庫が足りません：${short.map((x) => `${esc(x.name)} ${esc(x.short)}点`).join('、')}。お客さまへのご連絡をお願いします。</li>` : ''}${o.memo ? `<li>備考：${esc(o.memo)}</li>` : ''}</ul></div>
                   </div>
                 </td>
               </tr>`; }).join('')}
@@ -1740,17 +1835,100 @@
             <p><b style="font-size:28px;color:var(--gold-300);font-family:var(--font-display)">${n}</b> 件</p>
             ${n ? `<p><a class="link" href="#orders" data-src-filter="${esc(e.slug)}">注文一覧で見る</a></p>` : ''}`;
   }
+  // the event form's banner image while it is edited (null: none) and how many images are on
+  // their way. A new object for every drawing of the screen, so a late upload never lands in the next one
+  let evEdit = null;
+  const evUploading = () => !!(evEdit && evEdit.uploads > 0);
+  // the description that comes with a built-in image (the flyer: the text printed on it)
+  const builtinAlt = (b) => { const d = S.DEFAULT_EVENT.banner; return d && b.src === d.src ? d.alt : b.alt; };
+  // a description the owner did not write: it is replaced when another image is chosen
+  const autoAlt = (alt) => !String(alt || '').trim() || BUILTIN_IMAGES.some((b) => b.alt === alt || builtinAlt(b) === alt);
+  function evBannerHTML() {
+    const b = evEdit.banner;
+    return `
+      <div class="adm-banner">
+        <div class="adm-banner__prev">${b ? `<img src="${esc(U.asset(b.src))}" alt="">` : '<span class="adm-faint">画像はありません</span>'}</div>
+        <div class="adm-field">
+          <div class="adm-banner__btns">
+            <span class="adm-upload"><input type="file" accept="image/*" id="evBannerUpload" aria-label="${b ? 'ページ上部の画像を変更する（アップロード）' : 'ページ上部の画像をアップロード'}" aria-describedby="ev-banner-hint"><span class="adm-btn">${b ? '画像を変更する' : '画像をアップロード'}</span></span>
+            ${b ? '<button class="adm-btn adm-btn--danger" type="button" id="evBannerRemove">画像を外す</button>' : ''}
+          </div>
+          <p class="adm-hint" id="ev-banner-hint">JPEG・PNG・WebPなど。長い辺が1600pxになるように自動で縮小して保存します。チラシは横長（3:2くらい）のものがおすすめです。</p>
+        </div>
+        <div class="adm-field"><span class="adm-label">サイト内の画像から選ぶ</span>
+          <div class="adm-builtins">${BUILTIN_IMAGES.map((x, i) => `<button class="adm-builtin${b && b.src === x.src ? ' is-current' : ''}" type="button" data-ev-builtin="${i}" aria-label="${esc(x.alt)}${b && b.src === x.src ? '（いま使っている画像）' : 'を使う'}">${builtinImg(x)}</button>`).join('')}</div>
+        </div>
+        ${b ? `
+        <div class="adm-field">
+          <label for="ev-banner-alt">画像の説明<span class="req">必須</span></label>
+          <textarea class="textarea" id="ev-banner-alt" rows="4" maxlength="300" aria-describedby="ev-banner-alt-hint">${esc(b.alt)}</textarea>
+          <p class="adm-hint" id="ev-banner-alt-hint">画像に書かれている内容（商品名・価格など）を、文章で入れてください。画像が見えない方の読み上げや、画像を読み込めないときに使われます。画像を変えたときは、説明も見直してください。</p>
+          <p class="adm-error" id="ev-banner-alt-err" hidden></p>
+        </div>` : ''}
+      </div>`;
+  }
+  function renderEvBanner(focusSel) {
+    const box = $('#evBannerBox');
+    if (!box) return;
+    box.innerHTML = evBannerHTML();
+    const el = focusSel && $(focusSel, box);
+    if (el) el.focus({ preventScroll: true });
+  }
+  // upload a banner image: shrunk like the product photos (a little larger: flyers carry small text),
+  // live: sent to the server's image storage (or kept in the data when there is none)
+  async function evBannerFile(el) {
+    const f = el.files && el.files[0];
+    if (!f || !evEdit) return;
+    const st = evEdit;
+    const inline0 = inlineImages;
+    let msg = '';
+    uploading(el, true, '画像');
+    st.uploads++;
+    try {
+      const src = await storeImage(await shrinkImage(f, 1600));
+      if (evEdit !== st) return;
+      const prev = st.banner;
+      st.banner = { src, alt: prev && !autoAlt(prev.alt) ? prev.alt : '' };
+      formDirty = true;
+      renderEvBanner('#evBannerUpload');
+      announce(st.banner.alt ? '画像を変更しました。画像の説明も見直してください。' : '画像を読み込みました。画像の説明を入力してください。');
+    } catch (err) {
+      msg = errText(err, '画像を保存できませんでした');
+    } finally {
+      st.uploads--;
+      if (el.isConnected) { uploading(el, false, '画像'); el.value = ''; }
+    }
+    if (msg) toast(msg, { error: true });
+    else if (inlineImages > inline0) toast('画像の保存先（サーバー）が用意されていないため、画像はイベントページのデータの中に保存します。データが大きくなるため、できるだけ小さな画像にしてください。');
+  }
+  // the form's switch and dates → 「販売中」 etc. (follows the form, before it is saved)
+  function evPhaseHTML(f, saved) {
+    const ph = eventPhase(f);
+    const text = {
+      on: `いまは販売中です${f.end ? `（${dateText(f.end)}まで）` : ''}。イベントページを公開し、イベント限定の商品も購入できます。`,
+      before: `${dateText(f.start)}から公開・販売します。それまでは、イベントページは表示されず、イベント限定の商品も購入できません。`,
+      after: `${dateText(f.end)}で終了しました。イベントページは表示されず、イベント限定の商品も購入できません。`,
+      off: 'イベントページを公開していないため、ページは表示されず、イベント限定の商品も購入できません。',
+    }[ph];
+    const pending = ph !== eventPhase(saved) ? '<small>保存すると、この状態になります</small>' : '';
+    return `<span class="adm-evphase__label">いまの状態</span>${phasePill(ph)}<span class="adm-evphase__text">${text}${pending}</span>`;
+  }
+  // event-only products that are for sale but not on the page: nobody could buy them
+  function evMissingHTML(c, picked) {
+    return c.products.filter((p) => p.options.eventOnly && p.status !== 'draft' && !picked.has(p.id))
+      .map((p) => `<p class="adm-error adm-evwarn__item">イベント限定の商品「${esc(p.name)}」が、イベントページに入っていません。このままでは購入できません。</p>`).join('');
+  }
   function renderEventAdmin() {
     const c = S.catalog();
     const e = c.settings.event;
     const evBase = JSON.stringify(e);
+    evEdit = { banner: e.banner ? { src: e.banner.src, alt: e.banner.alt } : null, uploads: 0 };
     loadOrders('paid');
-    const active = S.eventActive(e);
-    const state = !e.enabled ? '非公開' : active ? '公開中' : (e.start && S.today() < e.start ? '公開前' : '公開終了');
     const url = eventURL(e);
     const previewURL = eventURL(e, true);
     const cv = qrCanvas(url, 720);
     const fmt = (d) => (d ? d.replace(/-/g, '/') : '指定なし');
+    const phase0 = evPhaseHTML(e, e), warn0 = evMissingHTML(c, new Set(e.products));
     main.innerHTML = `
       ${head('イベントページ', { actions: `<a class="adm-btn" href="${esc(previewURL)}" target="_blank" rel="noopener">ページを見る${ICON.ext}</a>`, lead: '高輪のイベント会場で、QRコードから開いてもらうページです。表示期間のあいだだけ公開され、トップページとショップにもバナーが出ます。このページから注文すると、注文一覧に「イベント」と表示されます。' })}
       <div class="adm-grid2">
@@ -1764,6 +1942,12 @@
               <div class="adm-field"><label for="ev-end">表示の終了日</label><input class="input" id="ev-end" type="date" value="${esc(e.end)}"><p class="adm-hint">目安はイベントから3か月ほど</p></div>
             </div>
             <p class="adm-error" id="ev-err" hidden></p>
+            <p class="adm-evphase" id="evPhase" aria-live="polite">${phase0}</p>
+            <p class="adm-hint">イベント限定の商品は、この期間のあいだだけ、イベントページで購入できます。</p>
+          </section>
+          <section class="adm-sec" aria-labelledby="ev3">
+            <h2 id="ev3">ページ上部の画像<small>チラシなどを、ページのいちばん上に大きく表示します（なくてもかまいません）</small></h2>
+            <div id="evBannerBox">${evBannerHTML()}</div>
           </section>
           <section class="adm-sec" aria-labelledby="ev2">
             <h2 id="ev2">ページの内容</h2>
@@ -1774,8 +1958,9 @@
               <legend class="adm-legend">ページで紹介する商品（上から順に表示）</legend>
               <div class="adm-checks" style="margin-top:8px">
                 ${[...e.products.map((id) => c.products.find((p) => p.id === id)).filter(Boolean), ...c.products.filter((p) => !e.products.includes(p.id))].map((p) => `
-                  <label class="adm-check"><input type="checkbox" name="ev-prod" value="${esc(p.id)}" ${e.products.includes(p.id) ? 'checked' : ''}><span>${esc(p.name)}${p.status === 'draft' ? '<small>非公開の商品です（ページには表示されません）</small>' : ''}</span></label>`).join('')}
+                  <label class="adm-check"><input type="checkbox" name="ev-prod" value="${esc(p.id)}" ${e.products.includes(p.id) ? 'checked' : ''}><span>${esc(p.name)}${p.options.eventOnly ? '<span class="adm-tag adm-tag--inline">イベント限定</span>' : ''}${p.status === 'draft' ? '<small>非公開の商品です（ページには表示されません）</small>' : p.options.eventOnly ? '<small>イベントページだけで販売する商品です。チェックを外すと、購入できなくなります</small>' : ''}</span></label>`).join('')}
               </div>
+              <div class="adm-evwarn" id="evWarn" aria-live="polite">${warn0}</div>
             </fieldset>
           </section>
           <div><button class="btn btn--gold btn--sm" type="submit">イベントページを保存する</button></div>
@@ -1783,7 +1968,7 @@
         <div>
           <section class="adm-card adm-qr">
             <h2>会場用のQRコード</h2>
-            <p class="adm-muted">いまの状態：<span class="pill pill--${active ? 'published' : 'draft'}">${state}</span>（${fmt(e.start)}〜${fmt(e.end)}）</p>
+            <p class="adm-muted">いまの状態：${phasePill(eventPhase(e))}（${fmt(e.start)}〜${fmt(e.end)}）</p>
             ${cv ? `<img class="adm-qr__img" src="${cv.toDataURL('image/png')}" alt="イベントページのQRコード" width="240" height="240">` : '<p class="adm-error">QRコードを作れませんでした（ネットワークにつながっているか確認してください）。</p>'}
             <p class="adm-qr__url"><code id="evUrl">${esc(url)}</code></p>
             <div class="adm-row-actions" style="justify-content:flex-start">
@@ -1808,12 +1993,60 @@
       try { await navigator.clipboard.writeText(url); toast('URLをコピーしました'); }
       catch { const r = document.createRange(); r.selectNodeContents($('#evUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('URLを選択しました。コピーしてお使いください。'); }
     });
-    $('#evForm').addEventListener('submit', async (ev) => {
+    $('#evPhase').dataset.live = phase0;
+    $('#evWarn').dataset.live = warn0;
+    const form = $('#evForm');
+    const formEvent = () => ({ enabled: $('#ev-enabled').checked, start: $('#ev-start').value, end: $('#ev-end').value });
+    const onField = (ev) => {
+      const t = ev.target;
+      if (t.matches('#ev-enabled, #ev-start, #ev-end')) liveHTML($('#evPhase'), evPhaseHTML(formEvent(), e));
+      else if (t.matches('[name="ev-prod"]')) liveHTML($('#evWarn'), evMissingHTML(c, new Set($$('input[name="ev-prod"]:checked', form).map((x) => x.value))));
+      else if (t.id === 'ev-banner-alt' && evEdit.banner) {
+        evEdit.banner.alt = t.value;
+        if (t.getAttribute('aria-invalid') === 'true' && t.value.trim()) showErr('ev-banner-alt-err', '', '#ev-banner-alt');
+      } else if (t.id === 'evBannerUpload' && ev.type === 'change') evBannerFile(t);
+    };
+    form.addEventListener('input', onField);
+    form.addEventListener('change', onField);
+    form.addEventListener('click', (ev) => {
+      const bb = ev.target.closest('[data-ev-builtin]');
+      const rm = ev.target.closest('#evBannerRemove');
+      if (!bb && !rm) return;
+      if (saving) return;
+      if (evUploading()) { announce(LIVE ? '画像を送っています。少しお待ちください。' : '画像を読み込んでいます。少しお待ちください。'); return; }
+      formDirty = true;
+      if (rm) {
+        evEdit.banner = null;
+        renderEvBanner('#evBannerUpload');
+        announce('画像を外しました。「イベントページを保存する」を押すと反映されます。');
+        return;
+      }
+      const x = BUILTIN_IMAGES[+bb.dataset.evBuiltin];
+      const prev = evEdit.banner;
+      evEdit.banner = { src: x.src, alt: prev && !autoAlt(prev.alt) ? prev.alt : builtinAlt(x) };
+      renderEvBanner(`[data-ev-builtin="${bb.dataset.evBuiltin}"]`);
+      announce(`「${x.alt}」を、ページ上部の画像にしました。`);
+    });
+    form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       if (saving) return;
+      if (evUploading()) { toast(LIVE ? '画像を送っています。送り終わってから保存してください。' : '画像を読み込んでいます。読み込み終わってから保存してください。'); return; }
       const start = $('#ev-start').value, end = $('#ev-end').value;
-      if (start && end && start > end) { showErr('ev-err', '表示の終了日は、開始日より後の日付にしてください。', '#ev-end'); $('#ev-end').focus(); return; }
-      showErr('ev-err', '', '#ev-end');
+      const errs = [];
+      const badDates = !!(start && end && start > end);
+      showErr('ev-err', badDates ? '表示の終了日は、開始日より後の日付にしてください。' : '', '#ev-end');
+      if (badDates) errs.push('#ev-end');
+      const altEl = $('#ev-banner-alt');
+      const banner = evEdit.banner ? { src: evEdit.banner.src, alt: (altEl ? altEl.value : evEdit.banner.alt).trim() } : null;
+      if (banner) {
+        showErr('ev-banner-alt-err', banner.alt ? '' : '画像の説明を入力してください（画像に書かれている内容を文章で）。', '#ev-banner-alt');
+        if (!banner.alt) errs.push('#ev-banner-alt');
+      }
+      if (errs.length) {
+        $(errs[0]).focus();
+        toast(`入力内容を確認してください（${errs.length}か所）`, { error: true });
+        return;
+      }
       const next = {
         enabled: $('#ev-enabled').checked,
         date: $('#ev-date').value, start, end,
@@ -1821,6 +2054,7 @@
         lead: $('#ev-lead').value.trim(),
         shipNote: $('#ev-ship').value.trim() || S.DEFAULT_EVENT.shipNote,
         products: $$('input[name="ev-prod"]:checked').map((x) => x.value),
+        banner,
       };
       const ok = await commit((cat) => { cat.settings.event = { ...cat.settings.event, ...next }; }, 'イベントページを保存しました', { href: previewURL, text: 'ページで確認' }, {
         conflict: (latest) => (JSON.stringify(latest.settings.event) === evBase ? null
@@ -2165,7 +2399,7 @@
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's' && draft && $('#edForm') && $('#admModal').hidden && !$('#admLogin:not([hidden])')) { e.preventDefault(); if (!saving) $('#edForm').requestSubmit(); }
   });
-  window.addEventListener('beforeunload', (e) => { if (hasUnsaved() || saving || uploadsFor(draft)) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (hasUnsaved() || saving || uploadsFor(draft) || evUploading()) { e.preventDefault(); e.returnValue = ''; } });
   // live: back to this tab after a while — read the catalog again (stock may have been sold)
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && LIVE && !locked && currentRoute && currentRoute !== 'orders') loadCatalog(); });
   // password fields (login screen and the login dialog)

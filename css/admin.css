@@ -148,6 +148,9 @@ body.admin :focus-visible { outline: 2px solid var(--moon); outline-offset: 2px;
 .adm-star svg { width: 20px; height: 20px; }
 .adm-star[aria-pressed="true"] { color: var(--moon); }
 .adm-star:hover { color: var(--gold-300); }
+/* event-only goods: no star (pressing it tells why) */
+.adm-star[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.adm-star[aria-disabled="true"]:hover { color: var(--text-faint); }
 .adm-status-select { min-height: 36px; width: auto; padding: 4px 34px 4px 10px; font-size: 13px; background-position: calc(100% - 18px) 52%, calc(100% - 12px) 52%; }
 .adm-status-select[data-status="published"], .adm-status-select[data-status="shipped"] { color: var(--moon); }
 .adm-status-select[data-status="draft"], .adm-status-select[data-status="canceled"] { color: var(--text-faint); }
@@ -274,6 +277,8 @@ body.admin .textarea { min-height: 96px; resize: vertical; line-height: 1.7; }
 .adm-check input:checked { background: var(--gold-300) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23262b35' stroke-width='1.8'/%3E%3C/svg%3E") center / 14px no-repeat; box-shadow: none; }
 .adm-check input:focus-visible { outline: 2px solid var(--moon); outline-offset: 2px; }
 .adm-check small { display: block; font-size: 12px; color: var(--text-faint); }
+.adm-check:has(input:disabled) { cursor: default; }
+.adm-check input:disabled { opacity: .4; cursor: not-allowed; }
 .adm-checks { display: grid; gap: 12px; }
 
 /* repeating rows: variants, specs */
@@ -421,7 +426,8 @@ html:has(body.admin) { scroll-padding-top: 16px; scroll-padding-bottom: 120px; }
 .adm-qr__url code { display: block; font-size: 12px; color: var(--text-dim); word-break: break-all; line-height: 1.6; }
 body.admin input[type="date"] { color-scheme: dark; }
 
-.adm-lead, .adm-check small { word-break: auto-phrase; }
+.adm-lead, .adm-check > span, .adm-check small { word-break: auto-phrase; }
+.adm-check .nowrap { white-space: nowrap; } /* keep （…） phrases of a checkbox label on one line */
 
 /* variant rows follow their own width (the editor column is narrow next to the preview):
    wide → one line; medium → name + tools, then price / weight / stock; narrow → two columns */
@@ -518,3 +524,54 @@ body.is-saving .adm-main { cursor: progress; }
 .adm-loading .empty__moon { animation: admPulse 1.6s ease-in-out infinite; }
 @keyframes admPulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .adm-loading .empty__moon { animation: none; } }
+
+/* ---------- イベント限定・送料込み (2026-10) ---------- */
+/* product list: small labels under the name */
+.adm-tags { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.adm-tag {
+  display: inline-block; padding: 1px 7px 0; font-size: 11px; line-height: 1.7; letter-spacing: .06em;
+  color: var(--gold-300); box-shadow: inset 0 0 0 1px var(--gold-400); white-space: nowrap;
+}
+.adm-tag--warn { color: var(--danger); box-shadow: inset 0 0 0 1px rgba(240, 164, 136, .55); white-space: normal; }
+.adm-tag--inline { margin-left: 8px; vertical-align: 1px; }
+/* product editor: the note under 「イベント限定」 lines up with the option's text */
+.adm-check-group { display: grid; gap: 6px; }
+.adm-optnote { display: grid; gap: 2px; padding-left: 30px; word-break: auto-phrase; }
+.adm-optnote:empty { display: none; }
+.adm-optnote .link { color: var(--gold-300); text-decoration: underline; text-underline-offset: 3px; }
+/* orders: 「送料込みの商品を含む」 under the shipping */
+.adm-ship-incl { display: block; color: var(--gold-400); }
+
+/* event page: 販売中 / 開始前 / 終了 / 非公開 */
+.adm-evphase {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 12px 14px;
+  background: rgba(22, 28, 36, .5); box-shadow: inset 0 0 0 1px var(--line-soft); font-size: 13.5px; line-height: 1.7;
+}
+.adm-evphase__label { font-size: 12px; color: var(--text-dim); letter-spacing: .08em; }
+.adm-evphase__text { flex: 1 1 18em; min-width: 0; color: var(--text); word-break: auto-phrase; }
+.adm-evphase__text small { display: block; margin-top: 2px; font-size: 12px; color: var(--gold-200); }
+/* an event-only product left off the page */
+.adm-evwarn { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; background: rgba(240, 164, 136, .07); box-shadow: inset 0 0 0 1px rgba(240, 164, 136, .55); word-break: auto-phrase; }
+.adm-evwarn:empty { display: none; }
+/* event page: the banner (flyer) */
+.adm-banner { display: grid; gap: 16px; }
+.adm-banner__prev {
+  position: relative; display: grid; place-items: center; width: 100%; max-width: 560px; aspect-ratio: 3 / 2; overflow: hidden;
+  background: var(--night-700); box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+.adm-banner__prev img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.adm-banner__btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.adm-builtin.is-current::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--gold-300); pointer-events: none; }
+/* product photos in the admin's small boxes (list thumbnails, image pickers). ui.js marks a "contain"
+   image once it has loaded: is-cutout (+ is-tall for a standing bag) or is-flat, and style.css gives them
+   their shadow (the editor's larger boxes and the preview card use the shop's look as it is).
+   As in the shop's cart lines, a bag sits larger and lower, the top of its long string handle cut off */
+.adm-thumb > img.is-contain, .adm-builtin img.is-contain { padding: 6%; }
+.adm-thumb > img.is-cutout, .adm-builtin img.is-cutout {
+  top: -18%; height: 118%; padding: 0 8% 7%;
+  filter: drop-shadow(0 1px 1px rgba(6, 9, 13, .5)) drop-shadow(0 3px 4px rgba(6, 9, 13, .35));
+}
+.adm-thumb > img.is-cutout:not(.is-tall), .adm-builtin img.is-cutout:not(.is-tall) { top: -8%; height: 108%; padding: 0 4% 6%; }
+/* a flyer is unreadable that small: it fills the list thumbnail (the pickers still show it whole) */
+.adm-thumb > img.is-flat { object-fit: cover; padding: 0; filter: none; }
+.adm-builtin img.is-flat { padding: 4%; filter: none; }

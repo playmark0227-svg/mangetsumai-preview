@@ -65,6 +65,7 @@ export function holdPerClient(env) {
 const MSG = {
   invalid: '入力内容をご確認ください。',
   cart_changed: 'カートの商品に変更がありました。カートの内容をご確認のうえ、もう一度お手続きください。',
+  event_only: 'イベント限定の商品は、イベントの期間中だけご注文いただけます。カートの内容をご確認のうえ、もう一度お手続きください。',
   price_changed: '価格または送料が変更されました。新しいお支払い合計をご確認のうえ、もう一度お手続きください。',
   subscription: '定期便は、オンラインでのお申し込みを準備しています。お手数ですが、カートから定期便を外してご注文ください。',
   payments_unavailable: 'ただいまカード決済をご利用いただけません。時間をおいて、もう一度お試しください。',
@@ -77,6 +78,12 @@ const MSG = {
 // details: { orderNo, paidAt } only (whoever knows the three can see that much; not the amount)
 const duplicatePaidMessage = (no) => `同じ内容のご注文（ご注文番号 ${no}）のお支払いが、すでに完了しています。同じ商品をもう一度ご注文になる場合は、ご確認のうえ、改めてお手続きください。`;
 const duplicatePaid = (o) => new HttpError(409, 'duplicate_paid', duplicatePaidMessage(o.no), { orderNo: o.no, paidAt: o.paidAt });
+
+// 409 cart_changed with the cart problems as details. An event-only product outside its event
+// ('event_only': the event is over, turned off, or the product was taken off its page) gets a
+// message about the event period; the details are the same shape either way
+const cartChanged = (problems) => new HttpError(409, 'cart_changed',
+  problems.some((p) => p.code === 'event_only') ? MSG.event_only : MSG.cart_changed, problems);
 
 // count one request toward a per-client limit → true while it is within the limit
 async function withinLimit(env, request, name) {
@@ -207,19 +214,21 @@ async function withdraw(env, ctx, order, sessionId, ms) {
   }, 'checkout');
 }
 
-// The admin may save 売り切れ / 非公開 / a deletion / a lower stock (or the last units may be paid
-// for) while Stripe is creating this session: closing open checkouts then misses this one (its
-// session id was not saved yet). So once it is saved, the cart is checked again with the catalog
-// as it is now — what is no longer for sale (the same rule as unsellableIn: not_found / sold_out),
-// then, for managed stock, the hold as before — and a refused checkout is withdrawn (409 cart_changed).
+// The admin may save 売り切れ / 非公開 / a deletion / a lower stock / the end of the event (or the
+// last units may be paid for) while Stripe is creating this session: closing open checkouts then
+// misses this one (its session id was not saved yet). So once it is saved, the cart is checked
+// again with the catalog as it is now and today's date (Japan time) — what is no longer for sale
+// (the same rule as unsellableIn: not_found / sold_out / event_only), then, for managed stock, the
+// hold as before — and a refused checkout is withdrawn (409 cart_changed).
+const GONE = new Set(['not_found', 'sold_out', 'event_only']);
 async function recheckCart(env, ctx, order, sessionId, { value, priced, pref, managed, client, ms }) {
   const now = managed ? await stockAndHeld(env, holdRange(env, ms, { before: order.no, client })) : await loadCatalog(env);
-  const gone = Core.priceCart(now.catalog, value.items, { pref }).problems
-    .filter((p) => p.code === 'not_found' || p.code === 'sold_out');
+  const gone = Core.priceCart(now.catalog, value.items, { pref, today: Core.japanToday(nowMs(env)) }).problems
+    .filter((p) => GONE.has(p.code));
   const short = gone.length || !managed ? gone : holdProblems(now.catalog, priced.lines, now.held, holdPerClient(env));
   if (!short.length) return;
   await withdraw(env, ctx, order, sessionId, ms);
-  throw new HttpError(409, 'cart_changed', MSG.cart_changed, short);
+  throw cartChanged(short);
 }
 
 // an earlier checkout for the same order → expired at Stripe (or finalized if it was paid) → the order now
@@ -253,8 +262,13 @@ function sessionParams(env, order, value, priced, ms, { shippingAsLine = false }
   const c = value.customer;
   const dest = value.shipTo || { name: `${c.name1} ${c.name2}`, zip: c.zip, pref: c.pref, addr1: c.addr1, addr2: c.addr2, tel: c.tel };
   const sh = priced.shipping;
-  // 「送料（関東・2箱）」: the same wording as the shop (shoppers see 箱; the admin says 個口)
-  const shipName = sh.fee === 0 ? '送料無料' : `送料（${sh.region.name}${sh.parcels.length > 1 ? `・${sh.parcels.length}箱` : ''}）`;
+  // 「送料（関東・2箱）」: the same wording as the shop (shoppers see 箱; the admin says 個口).
+  // 送料込みの商品 (shipIncluded) add no box: with only those in the order there is no fee at all
+  // (「送料込み」); with other goods, the fee is for the other goods' boxes, written as usual
+  const shipName = sh.fee === 0
+    ? (sh.included && !sh.parcels.length ? '送料込み' : '送料無料')
+    : `送料（${sh.region.name}${sh.parcels.length > 1 ? `・${sh.parcels.length}箱` : ''}）`;
+  const lineName = (l) => `${l.variant ? `${l.name} ${l.variant}` : l.name}${l.shipIncluded ? '（送料込み）' : ''}`;
   return {
     mode: 'payment',
     locale: 'ja',
@@ -275,7 +289,7 @@ function sessionParams(env, order, value, priced, ms, { shippingAsLine = false }
     line_items: [
       ...priced.lines.map((l) => ({
         quantity: l.qty,
-        price_data: { currency: 'jpy', unit_amount: l.unit, product_data: { name: l.variant ? `${l.name} ${l.variant}` : l.name } },
+        price_data: { currency: 'jpy', unit_amount: l.unit, product_data: { name: lineName(l) } },
       })),
       ...(shippingAsLine && sh.fee > 0 ? [{ quantity: 1, price_data: { currency: 'jpy', unit_amount: sh.fee, product_data: { name: shipName } } }] : []),
     ],
@@ -298,13 +312,15 @@ export async function postCheckout({ request, env, ctx }) {
   const { value, errors } = validateCheckout(body);
   if (errors.length) throw new HttpError(400, 'invalid', MSG.invalid, errors);
 
-  // everything is priced here; whatever amounts the browser may have sent are ignored
+  // everything is priced here; whatever amounts the browser may have sent are ignored.
+  // Event-only products can be bought only on the event's dates in Japan time, by the server's clock
   const { catalog } = await loadCatalog(env);
-  const pref = value.shipTo ? value.shipTo.pref : value.customer.pref;
-  const priced = Core.priceCart(catalog, value.items, { pref });
-  if (priced.problems.length) throw new HttpError(409, 'cart_changed', MSG.cart_changed, priced.problems);
-  if (priced.lines.some((l) => l.subscription)) throw new HttpError(400, 'subscription_not_supported', MSG.subscription);
   const ms = nowMs(env);
+  const today = Core.japanToday(ms);
+  const pref = value.shipTo ? value.shipTo.pref : value.customer.pref;
+  const priced = Core.priceCart(catalog, value.items, { pref, today });
+  if (priced.problems.length) throw cartChanged(priced.problems);
+  if (priced.lines.some((l) => l.subscription)) throw new HttpError(400, 'subscription_not_supported', MSG.subscription);
   if (!Number.isInteger(priced.total) || priced.total <= 0 || priced.shipping.fee === null) {
     throw new HttpError(400, 'invalid', MSG.invalid, [{ field: 'items', message: 'ご注文の金額を計算できませんでした。カートの内容をご確認ください。' }]);
   }
@@ -318,8 +334,12 @@ export async function postCheckout({ request, env, ctx }) {
     throw new HttpError(409, 'price_changed', MSG.price_changed, { total: priced.total });
   }
 
+  // an event order: the shopper came from the event page (source) while the event is on, or the
+  // order has an event-only product (priceCart let it through, so the event is on) — the latter
+  // whatever source was sent (the cart may have been opened from another page)
   const ev = catalog.settings.event;
-  const event = value.source && ev && value.source === ev.slug && Core.eventActive(ev, Core.japanToday(ms)) ? ev : null;
+  const fromEvent = !!ev && (priced.lines.some((l) => l.eventOnly) || (!!value.source && value.source === ev.slug));
+  const event = fromEvent && Core.eventActive(ev, today) ? ev : null;
 
   // every order row keeps its number, and the checks below read every open checkout or call
   // Stripe, so what one client can do from here on is limited (refusals for held stock included:
@@ -339,7 +359,7 @@ export async function postCheckout({ request, env, ctx }) {
   const managed = managedLines(catalog, priced.lines).length > 0;
   if (managed) {
     const short = holdProblems(catalog, priced.lines, await heldStock(env, holdRange(env, ms, { client })), cap);
-    if (short.length) throw new HttpError(409, 'cart_changed', MSG.cart_changed, short);
+    if (short.length) throw cartChanged(short);
   }
   const order = await insertOrder(env, buildOrder({ value, priced, event, at: ms }), ms, { client, dupKey });
   if (managed) {
@@ -350,7 +370,7 @@ export async function postCheckout({ request, env, ctx }) {
     const short = holdProblems(now.catalog, priced.lines, now.held, cap);
     if (short.length) {
       await markExpired(env, order.no, ms);
-      throw new HttpError(409, 'cart_changed', MSG.cart_changed, short);
+      throw cartChanged(short);
     }
   }
   // one key per checkout, unique across databases (a local test database and a deployed Worker

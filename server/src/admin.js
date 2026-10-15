@@ -78,10 +78,11 @@ export async function putAdminCatalog({ request, env, ctx }) {
     throw new HttpError(409, 'conflict', 'ほかの画面で商品データが更新されていました。最新の内容を読み込みましたので、もう一度変更してから保存してください。', latest);
   }
   // shoppers still on Stripe's page for something that is no longer for sale (売り切れ・非公開・
-  // deleted・managed stock at 0) can no longer pay for it: their sessions are expired at Stripe.
+  // deleted・managed stock at 0, or an event-only product whose event is over or that was taken
+  // off the event page) can no longer pay for it: their sessions are expired at Stripe.
   // On Workers this runs after the answer; Stripe being unreachable never fails the save (the
   // sessions then end on their own, and a payment that gets through is flagged on the order)
-  await later(ctx, () => expireOpenCheckouts(env, unsellableIn(catalog)), 'expire');
+  await later(ctx, () => expireOpenCheckouts(env, unsellableIn(catalog, Core.japanToday(ms))), 'expire');
   return json(200, { catalog, rev: r.rev });
 }
 
