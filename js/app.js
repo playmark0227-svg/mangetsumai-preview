@@ -64,6 +64,9 @@
   const shipLabel = (q) => (q.region ? `送料（${[q.region.name, q.parcels.length > 1 ? `${q.parcels.length}箱` : ''].filter(Boolean).join('・')}）` : '送料');
   const parcelDetail = (q) => q.parcels.map((p) => `${p.kg}kg ${yen(p.fee)}円`).join('＋');
 
+  // 販売業者 K NEXT株式会社 の連絡先（2026-10-19 先方指定。特定商取引法に基づく表記などに表示）
+  const CONTACT = { address: '北海道北見市若葉4丁目6-13', tel: '090-8674-3711', email: 'knext.kitami@gmail.com' };
+
   // ギフト包装・のしは取り扱わない（2026-10 先方の指示）。項目を足せば復活できる
   const GIFT_OPTIONS = [
     { id: 'none', label: 'なし', paid: false },
@@ -2181,7 +2184,7 @@
               <h2>ご注文ありがとうございました</h2>
               <p class="thanks__no">ご注文番号<b>${esc(lastOrder.no)}</b></p>
               <p>${esc(lastOrder.name)} さま、ご注文を承りました。${lastOrder.preorder ? (lastOrder.mixed ? `ご注文の商品は、予約商品の発送（${esc(lastOrder.ship)}）にあわせてまとめてお届けします。` : `予約商品は、${esc(lastOrder.ship)}。`) : lastOrder.eventNote ? esc(lastOrder.eventNote) : '準備が整いしだい発送いたします。'}</p>
-              ${LIVE ? '<p class="notice">お問い合わせの際は、ご注文番号をお伝えください。</p>' : '<p class="notice">デモサイトのため、確認メールの送信や実際の発送は行われません。</p>'}`;
+              ${LIVE ? `<p class="notice">お問い合わせは、<a class="link" href="mailto:${esc(CONTACT.email)}">${esc(CONTACT.email)}</a>（K NEXT株式会社）まで。ご注文番号をお伝えください。</p>` : '<p class="notice">デモサイトのため、確認メールの送信や実際の発送は行われません。</p>'}`;
     } else {
       body = `<h2>ご注文番号を表示できません</h2><p>ご注文の手続きが済むと、この画面にご注文番号が表示されます。${LIVE ? '' : 'ページを開き直した場合は表示されません。'}</p>`;
     }
@@ -2245,7 +2248,7 @@
     const inclNames = onSale().filter((p) => p.options.shipIncluded).map((p) => p.name);
     // event orders: from the event page, or with an event-only product
     const evOn = S.eventActive(s.event);
-    // event-only goods on sale now (北海道満喫セット): the carrier is settled (ヤマト運輸 or 佐川急便, 2026-10-15)
+    // event-only goods on sale now (北海道満喫セット): the carrier is settled (福山通運 or 日本郵便, 2026-10-19)
     // but not the temperature of the seafood, so the guide only promises 常温便 for the rice while they are sold
     const evGoods = [...new Set(onSale().filter((p) => p.options.eventOnly).map((p) => p.name))];
     const evKinds = ['イベントページからのご注文', evGoods.length ? 'イベント限定の商品を含むご注文' : ''].filter(Boolean);
@@ -2279,7 +2282,7 @@
                   <li><i>01</i><b>商品を選ぶ</b><span>内容量を選んで、カートに入れます。</span></li>
                   <li><i>02</i><b>お客様情報</b><span>お名前・ご住所・お届け先を入力します。</span></li>
                   <li><i>03</i><b>ご確認・お支払い</b><span>ご注文内容を確かめて注文を確定し、Stripeの決済画面からクレジットカードでお支払いいただきます。</span></li>
-                  <li><i>04</i><b>お届け</b><span>K NEXT株式会社から、<span class="nw">ヤマト運輸</span>または<span class="nw">佐川急便</span>でお届けします。</span></li>
+                  <li><i>04</i><b>お届け</b><span>K NEXT株式会社から、<span class="nw">福山通運</span>または<span class="nw">日本郵便</span>でお届けします。</span></li>
                 </ol>
               </section>
               <section class="guide__sec" id="g-pay">
@@ -2296,23 +2299,23 @@
                 ${inclNames.length ? `<p class="guide__incl">${esc(inclNames.join('・'))}は送料込みの価格です。ほかの商品と一緒にご注文いただいた場合、送料はほかの商品の分だけかかります${s.ship.freeOver > 0 ? '（送料無料の金額にも、送料込みの商品は含みません）' : ''}。</p>` : ''}
                 ${rateTableHTML(s)}
                 <div class="table-wrap"><table class="spec-table"><tbody>
-                  <tr><th scope="row">配送方法</th><td>${evGoods.length ? `ヤマト運輸または佐川急便<br>お米：常温便／${esc(evGoods.join('・'))}の温度帯：${pend}` : 'ヤマト運輸または佐川急便（常温便）'}</td></tr>
+                  <tr><th scope="row">配送方法</th><td>${evGoods.length ? `福山通運または日本郵便<br>お米：常温便／${esc(evGoods.join('・'))}の温度帯：${pend}` : '福山通運または日本郵便（常温便）'}</td></tr>
                   <tr><th scope="row">発送時期</th><td>${sellsPreorder() ? '通常商品：ご購入いただいた順に、順次発送<br>予約商品：各商品ページに記載の時期に発送' : 'ご購入いただいた順に、順次発送'}${evOn && evWhen ? `<br>${evWhat}：${esc(evWhen)}` : ''}</td></tr>
                   <tr><th scope="row">日時指定</th><td>ご注文日の4日後以降の日付と、時間帯をお選びいただけます${sellsPreorder() || evOn ? `（${andList([sellsPreorder() ? '予約商品を含むご注文' : '', ...(evOn ? evKinds : [])])}は日付指定不可）` : ''}</td></tr>
                 </tbody></table></div>
               </section>
               <section class="guide__sec" id="g-return">
                 <h2>返品・交換</h2>
-                <p>食品のため、お客様のご都合による返品・交換はお受けできません。商品の破損や誤配送があった場合は、商品到着後7日以内にご連絡ください。送料当店負担で交換いたします。</p>
+                <p>食品のため、お客様のご都合による返品・交換はお受けできません。商品の破損や誤配送があった場合は、商品到着後7日以内に<a class="link" href="mailto:${esc(CONTACT.email)}">${esc(CONTACT.email)}</a>（または<span class="nw">${esc(CONTACT.tel)}</span>）までご連絡ください。送料当店負担で交換いたします。</p>
               </section>
               <section class="guide__sec" id="g-law">
                 <h2>特定商取引法に基づく表記</h2>
                 <div class="table-wrap"><table class="spec-table"><tbody>
                   <tr><th scope="row">販売業者</th><td>K NEXT株式会社</td></tr>
                   <tr><th scope="row">運営責任者</th><td>代表取締役社長　桑田 貴裕</td></tr>
-                  <tr><th scope="row">所在地</th><td>${pend}</td></tr>
-                  <tr><th scope="row">電話番号</th><td>${pend}</td></tr>
-                  <tr><th scope="row">メールアドレス</th><td>${pend}</td></tr>
+                  <tr><th scope="row">所在地</th><td>${esc(CONTACT.address)}</td></tr>
+                  <tr><th scope="row">電話番号</th><td><a class="link" href="tel:${esc(CONTACT.tel.replace(/-/g, ''))}">${esc(CONTACT.tel)}</a></td></tr>
+                  <tr><th scope="row">メールアドレス</th><td><a class="link" href="mailto:${esc(CONTACT.email)}">${esc(CONTACT.email)}</a></td></tr>
                   <tr><th scope="row">販売価格</th><td>各商品ページに税込価格で表示しています</td></tr>
                   <tr><th scope="row">商品代金以外の費用</th><td>送料（お届け先の地域と重さにより異なります。${inclNames.length ? '送料込みの商品は、価格に送料を含みます。' : ''}「送料・お届け」をご覧ください）</td></tr>
                   <tr><th scope="row">お支払い方法</th><td>クレジットカード（Stripeによる決済）</td></tr>

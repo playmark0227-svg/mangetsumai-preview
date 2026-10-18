@@ -18,12 +18,12 @@
 
   const KEYS = {
     // v7: 2026-10-14 北海道満喫セット（イベント限定・送料込み）と実物の袋の写真
-    catalog: 'mangetsu.catalog.v8',
+    catalog: 'mangetsu.catalog.v9',
     cart: 'mangetsu.cart.v1',
     orders: 'mangetsu.orders.v2',
   };
   // clean up data from earlier demo versions (old catalog, test orders paid by 代金引換)
-  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.catalog.v3', 'mangetsu.catalog.v4', 'mangetsu.catalog.v5', 'mangetsu.catalog.v6', 'mangetsu.catalog.v7', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  try { ['mangetsu.catalog.v1', 'mangetsu.catalog.v2', 'mangetsu.catalog.v3', 'mangetsu.catalog.v4', 'mangetsu.catalog.v5', 'mangetsu.catalog.v6', 'mangetsu.catalog.v7', 'mangetsu.catalog.v8', 'mangetsu.orders.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
 
   const { DEFAULT_CATALOG, DEFAULT_EVENT, ID_RE, clone, normalize } = C;
 
